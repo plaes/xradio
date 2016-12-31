@@ -1479,9 +1479,8 @@ report:
 		sta_printk(XRADIO_DBG_WARN, "[CQM] Beacon loss.\n");
 		if (timeout <= 0)
 			timeout = 0;
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+		// Extensions
 		//ieee80211_cqm_beacon_miss_notify(priv->vif, GFP_KERNEL);
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 	} else {
 		timeout = 0;
 	}
@@ -1509,11 +1508,7 @@ void cw1200_tx_failure_work(struct work_struct *work)
 	//struct cw1200_vif *priv =
 	//	container_of(work, struct cw1200_vif, tx_failure_work);
 	sta_printk(XRADIO_DBG_WARN, "[CQM] Reporting TX failure.\n");
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	//ieee80211_cqm_tx_fail_notify(priv->vif, GFP_KERNEL);
-#else /* CONFIG_XRADIO_USE_EXTENSIONS */
-	//(void)priv;
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 }
 
 #ifdef CONFIG_XRADIO_TESTMODE
@@ -2257,9 +2252,7 @@ int cw1200_vif_setup(struct cw1200_vif *priv)
 	INIT_WORK(&priv->multicast_stop_work, cw1200_multicast_stop_work);
 	INIT_WORK(&priv->link_id_work, cw1200_link_id_work);
 	INIT_DELAYED_WORK(&priv->link_id_gc_work, cw1200_link_id_gc_work);
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	INIT_WORK(&priv->linkid_reset_work, cw1200_link_id_reset);
-#endif
 	INIT_WORK(&priv->update_filtering_work, cw1200_update_filtering_work);
 	INIT_DELAYED_WORK(&priv->pending_offchanneltx_work,
 			cw1200_pending_offchanneltx_work);

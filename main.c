@@ -270,11 +270,6 @@ void cw1200_version_show(void)
 #ifdef CONFIG_XRADIO_5GHZ_SUPPORT
 	cw1200_dbg(XRADIO_DBG_NIY, "[CONFIG_XRADIO_5GHZ_SUPPORT]\n");
 #endif
-
-#ifdef CONFIG_XRADIO_USE_EXTENSIONS
-	cw1200_dbg(XRADIO_DBG_NIY, "[CONFIG_XRADIO_USE_EXTENSIONS]\n");
-#endif
-
 #ifdef CONFIG_PM
 	cw1200_dbg(XRADIO_DBG_NIY, "[CONFIG_PM]\n");
 #endif
@@ -596,11 +591,11 @@ struct ieee80211_hw *cw1200_init_common(size_t hw_priv_data_len)
 	            /* Aggregation is fully controlled by firmware.
 	             * Do not need any support from the mac80211 stack */
 	            /* IEEE80211_HW_AMPDU_AGGREGATION  | */
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+// XXX: Extensions
 	            //IEEE80211_HW_SUPPORTS_P2P_PS          |
 	            //IEEE80211_HW_SUPPORTS_CQM_BEACON_MISS |
 	          //  IEEE80211_HW_SUPPORTS_CQM_TX_FAIL     |
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
+// XXX: /Extensions
 	            //IEEE80211_HW_BEACON_FILTER;
 
 	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION)    |
@@ -614,9 +609,7 @@ struct ieee80211_hw *cw1200_init_common(size_t hw_priv_data_len)
 	hw->wiphy->wowlan.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_DISCONNECT;
 	hw->wiphy->wowlan.n_patterns = 0;
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 	/* fix the problem that driver can not set pro-resp templet frame to fw */
 	hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
 

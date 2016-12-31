@@ -813,11 +813,9 @@ cw1200_tx_h_calc_link_ids(struct cw1200_vif *priv,
 		priv->link_id_db[t->txpriv.raw_link_id - 1].timestamp =
 				jiffies;
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	if (t->tx_info->control.sta &&
 			(t->tx_info->control.sta->uapsd_queues & BIT(t->queue)))
 		t->txpriv.link_id = priv->link_id_uapsd;
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 	return 0;
 }
 
@@ -825,8 +823,6 @@ static void
 cw1200_tx_h_pm(struct cw1200_vif *priv,
 	       struct cw1200_txinfo *t)
 {
-	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
-
 	if (unlikely(ieee80211_is_auth(t->hdr->frame_control))) {
 		u32 mask = ~BIT(t->txpriv.raw_link_id);
 		spin_lock_bh(&priv->ps_state_lock);
@@ -1394,11 +1390,8 @@ void cw1200_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	}
 	spin_unlock_bh(&priv->ps_state_lock);
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	if (tid_update && sta)
-		ieee80211_sta_set_buffered(sta,
-				t.txpriv.tid, true);
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
+		ieee80211_sta_set_buffered(sta, t.txpriv.tid, true);
 
 	rcu_read_unlock();
 
@@ -1827,24 +1820,22 @@ void cw1200_tx_confirm_cb(struct cw1200_common *hw_priv,
 static void cw1200_notify_buffered_tx(struct cw1200_vif *priv,
 			       struct sk_buff *skb, int link_id, int tid)
 {
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	struct ieee80211_sta *sta;
 	struct ieee80211_hdr *hdr;
 	u8 *buffered;
 	u8 still_buffered = 0;
-	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	if (link_id && tid < XRADIO_MAX_TID) {
 		buffered = priv->link_id_db
 				[link_id - 1].buffered;
 
 		spin_lock_bh(&priv->ps_state_lock);
-		if (!SYS_WARN(!buffered[tid]))
+		if (!WARN_ON(!buffered[tid]))
 			still_buffered = --buffered[tid];
 		spin_unlock_bh(&priv->ps_state_lock);
 
 		if (!still_buffered && tid < XRADIO_MAX_TID) {
-			hdr = (struct ieee80211_hdr *) skb->data;
+			hdr = (struct ieee80211_hdr *)skb->data;
 			rcu_read_lock();
 			sta = ieee80211_find_sta(priv->vif, hdr->addr1);
 			if (sta)
@@ -1852,7 +1843,6 @@ static void cw1200_notify_buffered_tx(struct cw1200_vif *priv,
 			rcu_read_unlock();
 		}
 	}
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 }
 
 void cw1200_skb_dtor(struct cw1200_common *hw_priv,
@@ -1989,16 +1979,12 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 	struct sk_buff *skb = *skb_p;
 	struct ieee80211_rx_status *hdr = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
-#endif
 	struct cw1200_link_entry *entry = NULL;
 	unsigned long grace_period;
 	bool early_data = false;
-	size_t hdrlen = 0;
 	u8   parse_iv_len = 0;
-	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
-
+	size_t hdrlen = 0;
 	hdr->flag = 0;
 
 	if (unlikely(priv->mode == NL80211_IFTYPE_UNSPECIFIED)) {
@@ -2010,13 +1996,11 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 	cw1200_frame_monitor(hw_priv,skb,false);
 #endif
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	if ((ieee80211_is_action(frame->frame_control))
 	    && (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)) {
 		u8 *action = (u8*)&mgmt->u.action.category;
 		cw1200_check_go_neg_conf_success(hw_priv, action);
 	}
-#endif
 
 #ifdef CONFIG_XRADIO_TESTMODE
 	spin_lock_bh(&hw_priv->tsm_lock);
@@ -2046,7 +2030,6 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 			early_data = true;
 		entry->timestamp = jiffies;
 	}
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	else if ((arg->link_id == XRADIO_LINK_ID_UNMAPPED)
 			&& (priv->vif->p2p == WSM_START_MODE_P2P_GO)
 			&& ieee80211_is_action(frame->frame_control)
@@ -2075,7 +2058,6 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 		priv->action_linkid = arg->link_id;
 		schedule_work(&priv->linkid_reset_work);
 	}
-#endif
 	if (unlikely(arg->status)) {
 		if (arg->status == WSM_STATUS_MICFAILURE) {
 			txrx_printk(XRADIO_DBG_WARN, "[RX] IF=%d, MIC failure.\n", 
@@ -2424,7 +2406,7 @@ int cw1200_upload_keys(struct cw1200_vif *priv)
 		}
 	return ret;
 }
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+
 /* Workaround for WFD test case 6.1.10 */
 void cw1200_link_id_reset(struct work_struct *work)
 {
@@ -2432,7 +2414,6 @@ void cw1200_link_id_reset(struct work_struct *work)
 		container_of(work, struct cw1200_vif, linkid_reset_work);
 	struct cw1200_common *hw_priv = priv->hw_priv;
 	int temp_linkid;
-	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	if (!priv->action_linkid) {
 		/* In GO mode we can receive ACTION frames without a linkID */
@@ -2467,4 +2448,3 @@ void cw1200_link_id_reset(struct work_struct *work)
 		flush_workqueue(hw_priv->workqueue);
 	}
 }
-#endif

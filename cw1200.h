@@ -131,10 +131,8 @@ enum cw1200_link_status {
 	XRADIO_LINK_RESERVE,
 	XRADIO_LINK_SOFT,
 	XRADIO_LINK_HARD,
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	XRADIO_LINK_RESET,
 	XRADIO_LINK_RESET_REMAP,
-#endif
 };
 
 enum cw1200_bss_loss_status {
@@ -147,9 +145,7 @@ enum cw1200_bss_loss_status {
 struct cw1200_link_entry {
 	unsigned long			timestamp;
 	enum cw1200_link_status		status;
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	enum cw1200_link_status		prev_status;
-#endif
 	u8				mac[ETH_ALEN];
 	u8				buffered[XRADIO_MAX_TID];
 	struct sk_buff_head		rx_queue;
@@ -520,12 +516,12 @@ struct cw1200_vif {
 
 	/* ROC implementation */
 	struct delayed_work		pending_offchanneltx_work;
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+
 	/* Workaround for WFD testcase 6.1.10*/
 	struct work_struct	linkid_reset_work;
 	u8			action_frame_sa[ETH_ALEN];
 	u8			action_linkid;
-#endif
+
 	bool			htcap;
 #ifdef  AP_HT_CAP_UPDATE
         u16                     ht_info;

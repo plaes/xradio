@@ -684,13 +684,11 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			priv->association_mode.mpduStartSpacing =
 			  cw1200_ht_ampdu_density(&hw_priv->ht_info);
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 			//priv->cqm_beacon_loss_count = info->cqm_beacon_miss_thold;
 			//priv->cqm_tx_failure_thold  = info->cqm_tx_fail_thold;
 			//priv->cqm_tx_failure_count  = 0;
 			cancel_delayed_work_sync(&priv->bss_loss_work);
 			cancel_delayed_work_sync(&priv->connection_loss_work);
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 
 			priv->bss_params.beaconLostCount = (priv->cqm_beacon_loss_count ?
 			  priv->cqm_beacon_loss_count : priv->cqm_link_loss_count);
@@ -745,11 +743,9 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 				priv->powersave_mode.pmMode = WSM_PSM_ACTIVE;
 			cw1200_set_pm(priv, &priv->powersave_mode);
 			if (priv->vif->p2p) {
-				ap_printk(XRADIO_DBG_NIY, "[STA] Setting p2p powersave configuration.\n");
-				SYS_WARN(wsm_set_p2p_ps_modeinfo(hw_priv, &priv->p2p_ps_modeinfo, priv->if_id));
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+				pr_debug("[STA] Setting p2p powersave configuration.\n");
+				wsm_set_p2p_ps_modeinfo(hw_priv, &priv->p2p_ps_modeinfo, priv->if_id);
 				//cw1200_notify_noa(priv, XRADIO_NOA_NOTIFICATION_DELAY);
-#endif
 			}
 
 			if (priv->mode == NL80211_IFTYPE_STATION)
@@ -814,13 +810,10 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 		info->cqm_rssi_hyst = 4;
 #endif /* 0 */
 
-		ap_printk(XRADIO_DBG_NIY, "[CQM] RSSI threshold subscribe: %d(+-%d)\n",
-		         info->cqm_rssi_thold, info->cqm_rssi_hyst);
-
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+		pr_debug("[CQM] RSSI threshold subscribe: %d +- %d\n",
+			 info->cqm_rssi_thold, info->cqm_rssi_hyst);
 		priv->cqm_rssi_thold = info->cqm_rssi_thold;
-		priv->cqm_rssi_hyst  = info->cqm_rssi_hyst;
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
+		priv->cqm_rssi_hyst = info->cqm_rssi_hyst;
 
 		if (info->cqm_rssi_thold || info->cqm_rssi_hyst) {
 			/* RSSI subscription enabled */
@@ -847,7 +840,6 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 		}
 		SYS_WARN(wsm_set_rcpi_rssi_threshold(hw_priv, &threshold, priv->if_id));
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 		//priv->cqm_tx_failure_thold = info->cqm_tx_fail_thold;
 		//priv->cqm_tx_failure_count = 0;
 
@@ -862,7 +854,6 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 				priv->setbssparams_done = true;
 			}
 		//}
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 	}
 	/*
 	 * in linux3.4 mac,the  enum ieee80211_bss_change variable doesn't have
@@ -921,7 +912,6 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 #endif
 	/*in linux3.4 mac,the  enum ieee80211_bss_change variable doesn't have BSS_CHANGED_P2P_PS enum value*/
 #if 0
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	if (changed & BSS_CHANGED_P2P_PS) {
 		struct wsm_p2p_ps_modeinfo *modeinfo;
 		modeinfo = &priv->p2p_ps_modeinfo;
@@ -994,13 +984,10 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 		    priv->join_status == XRADIO_JOIN_STATUS_AP) {
 			SYS_WARN(wsm_set_p2p_ps_modeinfo(hw_priv, modeinfo, priv->if_id));
 		}
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 		/* Temporary solution while firmware don't support NOA change
 		 * notification yet */
 		cw1200_notify_noa(priv, 10);
-#endif
 	}
-#endif /* CONFIG_XRADIO_USE_EXTENSIONS */
 #endif
 	mutex_unlock(&hw_priv->conf_mutex);
 }
@@ -1456,12 +1443,9 @@ static int cw1200_start_ap(struct cw1200_vif *priv)
 	ret = SYS_WARN(wsm_start(hw_priv, &start, priv->if_id));
 
 	if (!ret && priv->vif->p2p) {
-		ap_printk(XRADIO_DBG_NIY,"[AP] Setting p2p powersave configuration.\n");
-		SYS_WARN(wsm_set_p2p_ps_modeinfo(hw_priv,
-			&priv->p2p_ps_modeinfo, priv->if_id));
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
+		pr_debug("[AP] Setting p2p powersave configuration.\n");
+		wsm_set_p2p_ps_modeinfo(hw_priv, &priv->p2p_ps_modeinfo, priv->if_id));
 		//cw1200_notify_noa(priv, XRADIO_NOA_NOTIFICATION_DELAY);
-#endif
 	}
 
 	/*Set Inactivity time*/
@@ -1646,7 +1630,6 @@ void cw1200_link_id_gc_work(struct work_struct *work)
 			} else {
 				next_gc = min_t(unsigned long, next_gc, ttl);
 			}
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 		} else if (priv->link_id_db[i].status == XRADIO_LINK_RESET ||
 		           priv->link_id_db[i].status == XRADIO_LINK_RESET_REMAP) {
 			int status = priv->link_id_db[i].status;
@@ -1662,7 +1645,6 @@ void cw1200_link_id_gc_work(struct work_struct *work)
 				priv->link_id_db[i].status = priv->link_id_db[i].prev_status;
 			}
 			spin_lock_bh(&priv->ps_state_lock);
-#endif
 		}
 		if (need_reset) {
 			skb_queue_purge(&priv->link_id_db[i].rx_queue);
@@ -1675,7 +1657,6 @@ void cw1200_link_id_gc_work(struct work_struct *work)
 	wsm_unlock_tx(hw_priv);
 }
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 #if 0
 void cw1200_notify_noa(struct cw1200_vif *priv, int delay)
 {
@@ -1708,7 +1689,6 @@ void cw1200_notify_noa(struct cw1200_vif *priv, int delay)
 		ieee80211_p2p_noa_notify(priv->vif, &p2p_ps, GFP_KERNEL);
 	}
 }
-#endif
 #endif
 int xrwl_unmap_link(struct cw1200_vif *priv, int link_id)
 {

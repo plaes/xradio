@@ -43,12 +43,4 @@ config XRADIO_5GHZ_SUPPORT
 	---help---
 	  Say Y if your device supports 5GHz band. If unsure, say N.
 
-config XRADIO_USE_EXTENSIONS
-	bool "Extensions for WFD and PS mode"
-	depends on XRADIO
-	default y
-	---help---
-	  Say Y if you want to include XR extensions
-	  If unsure, say Y.
-
 endif

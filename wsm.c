@@ -282,7 +282,7 @@ void wsm_upper_restart(struct cw1200_common *hw_priv)
 	cw1200_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
 #endif
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS) && 0
+#if 0
 	spin_lock(&hw_priv->vif_list_lock);
 	cw1200_for_each_vif(hw_priv, priv, i) {
 		if (!priv)
@@ -2070,9 +2070,7 @@ int wsm_handle_exception(struct cw1200_common *hw_priv, u8 *data, size_t len)
 	u32 reg[18];
 	char fname[48];
 	int i = 0;
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	struct cw1200_vif *priv = NULL;
-#endif
 
 #ifdef CONFIG_XRADIO_DEBUG
 	static const char * const reason_str[] = {
@@ -2083,7 +2081,6 @@ int wsm_handle_exception(struct cw1200_common *hw_priv, u8 *data, size_t len)
 	};
 #endif
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	/* Send the event upwards on the FW exception */
 	cw1200_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
 
@@ -2094,7 +2091,6 @@ int wsm_handle_exception(struct cw1200_common *hw_priv, u8 *data, size_t len)
 		//ieee80211_driver_hang_notify(priv->vif, GFP_KERNEL);
 	}
 	spin_unlock(&hw_priv->vif_list_lock);
-#endif
 
 	buf.begin = buf.data = data;
 	buf.end = &buf.begin[len];

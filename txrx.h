@@ -92,8 +92,6 @@ int cw1200_upload_keys(struct cw1200_vif *priv);
 
 /* ******************************************************************** */
 /* Workaround for WFD test case 6.1.10					*/
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 void cw1200_link_id_reset(struct work_struct *work);
-#endif
 
 #endif /* CW1200_TXRX_H */

@@ -2428,8 +2428,6 @@ static const struct file_operations fops_status_priv = {
 	.owner = THIS_MODULE,
 };
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
-
 static ssize_t cw1200_hang_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
@@ -2456,7 +2454,6 @@ static const struct file_operations fops_hang = {
 	.write = cw1200_hang_write,
 	.llseek = default_llseek,
 };
-#endif
 
 #ifdef AP_HT_COMPAT_FIX
 extern u8 ap_compat_bssid[ETH_ALEN];
@@ -2533,11 +2530,9 @@ int cw1200_debug_init_priv(struct cw1200_common *hw_priv,
 	if (SYS_WARN(!d->debugfs_phy))
 		goto err;
 
-#if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	if (SYS_WARN(!debugfs_create_file("hang", S_IWUSR, d->debugfs_phy,
 			priv, &fops_hang)))
 		goto err;
-#endif
 
 #if defined(AP_HT_COMPAT_FIX)
 	if (SYS_WARN(!debugfs_create_file("htcompat_disable", S_IWUSR, d->debugfs_phy,
