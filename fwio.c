@@ -1,15 +1,20 @@
 /*
- * Firmware I/O implementation for XRadio drivers
+ * Firmware I/O code for mac80211 ST-Ericsson CW1200 drivers
  *
+ * Copyright (c) 2010, ST-Ericsson
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
  * Copyright (c) 2013, XRadio
- * Author: XRadio
+ *
+ * Based on:
+ * ST-Ericsson UMAC CW1200 driver which is
+ * Copyright (c) 2010, ST-Ericsson
+ * Author: Ajitpal Singh <ajitpal.singh@stericsson.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/firmware.h>
@@ -20,63 +25,33 @@
 #include "hwbus.h"
 #include "bh.h"
 
-/* Macroses are local. */
-#define APB_WRITE(reg, val) \
-	do { \
-		ret = cw1200_apb_write_32(hw_priv, APB_ADDR(reg), (val)); \
-		if (ret < 0) { \
-			cw1200_dbg(XRADIO_DBG_ERROR, \
-				"%s: can't write %s at line %d.\n", \
-				__func__, #reg, __LINE__); \
-			goto error; \
-		} \
-	} while (0)
-#define APB_READ(reg, val) \
-	do { \
-		ret = cw1200_apb_read_32(hw_priv, APB_ADDR(reg), &(val)); \
-		if (ret < 0) { \
-			cw1200_dbg(XRADIO_DBG_ERROR, \
-				"%s: can't read %s at line %d.\n", \
-				__func__, #reg, __LINE__); \
-			goto error; \
-		} \
-	} while (0)
-#define REG_WRITE(reg, val) \
-	do { \
-		ret = cw1200_reg_write_32(hw_priv, (reg), (val)); \
-		if (ret < 0) { \
-			cw1200_dbg(XRADIO_DBG_ERROR, \
-				"%s: can't write %s at line %d.\n", \
-				__func__, #reg, __LINE__); \
-			goto error; \
-		} \
-	} while (0)
-#define REG_READ(reg, val) \
-	do { \
-		ret = cw1200_reg_read_32(hw_priv, (reg), &(val)); \
-		if (ret < 0) { \
-			cw1200_dbg(XRADIO_DBG_ERROR, \
-				"%s: can't read %s at line %d.\n", \
-				__func__, #reg, __LINE__); \
-			goto error; \
-		} \
-	} while (0)
-
-
 static int cw1200_get_hw_type(u32 config_reg_val, int *major_revision)
 {
-	int hw_type  = -1;
-	u32 hif_type = (config_reg_val >> 24) & 0x4;
-	//u32 hif_vers = (config_reg_val >> 31) & 0x1;
+	int hw_type = -1;
+	u32 silicon_type = (config_reg_val >> 24) & 0x7;
+	u32 silicon_vers = (config_reg_val >> 31) & 0x1;
 
-	/* Check if we have XRADIO*/
-  if (hif_type == 0x4) {
-		*major_revision = 0x4;
-		hw_type = HIF_HW_TYPE_XRADIO;
-	} else {
-		//hw type unknown.
-		*major_revision = 0x0;
+	/* TODO: major_revision for Allwinner is 0x4, hw_type = 1 */
+	pr_info("Silicon type: %d, version: %d.\n", silicon_type, silicon_vers);
+
+	switch (silicon_type) {
+	case 0x00:
+		*major_revision = 1;
+		hw_type = HIF_9000_SILICON_VERSATILE;
+		break;
+	case 0x01:
+	case 0x02: /* CW1x00 */
+	case 0x04: /* CW1x60 */
+		*major_revision = silicon_type;
+		if (silicon_vers)
+			hw_type = HIF_8601_VERSATILE;
+		else
+			hw_type = HIF_8601_SILICON;
+		break;
+	default:
+		break;
 	}
+
 	return hw_type;
 }
 
@@ -84,7 +59,7 @@ static int cw1200_get_hw_type(u32 config_reg_val, int *major_revision)
  * This function is called to Parse the SDD file
  * to extract some informations
  */
-static int cw1200_parse_sdd(struct cw1200_common *hw_priv, u32 *dpll)
+static int cw1200_parse_sdd(struct cw1200_common *priv, u32 *dpll)
 {
 	int ret = 0;
 	const char *sdd_path = NULL;
@@ -92,10 +67,10 @@ static int cw1200_parse_sdd(struct cw1200_common *hw_priv, u32 *dpll)
 	int parsedLength = 0;
 
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
-	SYS_BUG(hw_priv->sdd != NULL);
+	SYS_BUG(priv->sdd != NULL);
 
 	/* select and load sdd file depend on hardware version. */
-	switch (hw_priv->hw_revision) {
+	switch (priv->hw_revision) {
 	case XR819_HW_REV0:
 		sdd_path = XR819_SDD_FILE;
 		break;
@@ -104,7 +79,7 @@ static int cw1200_parse_sdd(struct cw1200_common *hw_priv, u32 *dpll)
 		return ret;
 	}
 
-	ret = request_firmware(&hw_priv->sdd, sdd_path, hw_priv->pdev);
+	ret = request_firmware(&priv->sdd, sdd_path, priv->pdev);
 	if (unlikely(ret)) {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't load sdd file %s.\n",
 		           __func__, sdd_path);
@@ -112,18 +87,18 @@ static int cw1200_parse_sdd(struct cw1200_common *hw_priv, u32 *dpll)
 	}
 
 	//parse SDD config.
-	hw_priv->is_BT_Present = false;
-	pElement = (struct cw1200_sdd *)hw_priv->sdd->data;
+	priv->is_BT_Present = false;
+	pElement = (struct cw1200_sdd *)priv->sdd->data;
 	parsedLength += (FIELD_OFFSET(struct cw1200_sdd, data) + pElement->length);
 	pElement = FIND_NEXT_ELT(pElement);
 
-	while (parsedLength < hw_priv->sdd->size) {
+	while (parsedLength < priv->sdd->size) {
 		switch (pElement->id) {
 		case SDD_PTA_CFG_ELT_ID:
-			hw_priv->conf_listen_interval = (*((u16 *)pElement->data+1) >> 7) & 0x1F;
-			hw_priv->is_BT_Present = true;
+			priv->conf_listen_interval = (*((u16 *)pElement->data+1) >> 7) & 0x1F;
+			priv->is_BT_Present = true;
 			cw1200_dbg(XRADIO_DBG_NIY, "PTA element found.Listen Interval %d\n",
-			           hw_priv->conf_listen_interval);
+			           priv->conf_listen_interval);
 			break;
 		case SDD_REFERENCE_FREQUENCY_ELT_ID:
 			switch(*((uint16_t*)pElement->data)) {
@@ -174,17 +149,19 @@ static int cw1200_parse_sdd(struct cw1200_common *hw_priv, u32 *dpll)
 	}
 	
 	cw1200_dbg(XRADIO_DBG_MSG, "sdd size=%d parse len=%d.\n", 
-	           hw_priv->sdd->size, parsedLength);
+	           priv->sdd->size, parsedLength);
 
 	//
-	if (hw_priv->is_BT_Present == false) {
-		hw_priv->conf_listen_interval = 0;
+	if (priv->is_BT_Present == false) {
+		priv->conf_listen_interval = 0;
 		cw1200_dbg(XRADIO_DBG_NIY, "PTA element NOT found.\n");
 	}
 	return ret;
 }
 
-static int cw1200_firmware(struct cw1200_common *hw_priv)
+#define CW1200_APB	APB_ADDR
+
+static int cw1200_firmware(struct cw1200_common *priv)
 {
 	int ret, block, num_blocks;
 	unsigned i;
@@ -193,17 +170,48 @@ static int cw1200_firmware(struct cw1200_common *hw_priv)
 	u8 *buf = NULL;
 	const char *fw_path;
 	const struct firmware *firmware = NULL;
-	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
-	switch (hw_priv->hw_revision) {
+	/* Macroses are local. */
+#define APB_WRITE(reg, val) \
+	do { \
+		ret = cw1200_apb_write_32(priv, CW1200_APB(reg), (val)); \
+		if (ret < 0) \
+			goto exit; \
+	} while (0)
+#define APB_WRITE2(reg, val) \
+	do { \
+		ret = cw1200_apb_write_32(priv, CW1200_APB(reg), (val)); \
+		if (ret < 0) \
+			goto free_buffer; \
+	} while (0)
+#define APB_READ(reg, val) \
+	do { \
+		ret = cw1200_apb_read_32(priv, CW1200_APB(reg), &(val)); \
+		if (ret < 0) \
+			goto free_buffer; \
+	} while (0)
+#define REG_WRITE(reg, val) \
+	do { \
+		ret = cw1200_reg_write_32(priv, (reg), (val)); \
+		if (ret < 0) \
+			goto exit; \
+	} while (0)
+#define REG_READ(reg, val) \
+	do { \
+		ret = cw1200_reg_read_32(priv, (reg), &(val)); \
+		if (ret < 0) \
+			goto exit; \
+	} while (0)
+
+	switch (priv->hw_revision) {
 	case XR819_HW_REV0:
 		fw_path = XR819_FIRMWARE;
 		break;
 	default:
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: invalid silicon revision %d.\n",
-		           __func__, hw_priv->hw_revision);
+		pr_err("Invalid silicon revision %d.\n", priv->hw_revision);
 		return -EINVAL;
 	}
+
 	/* Initialize common registers */
 	APB_WRITE(DOWNLOAD_IMAGE_SIZE_REG, DOWNLOAD_ARE_YOU_HERE);
 	APB_WRITE(DOWNLOAD_PUT_REG, 0);
@@ -221,32 +229,31 @@ static int cw1200_firmware(struct cw1200_common *hw_priv)
 	REG_WRITE(HIF_CONFIG_REG_ID, val32);
 
 	/* Load a firmware file */
-	ret = request_firmware(&firmware, fw_path, hw_priv->pdev);
+	ret = request_firmware(&firmware, fw_path, priv->pdev);
 	if (ret) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't load firmware file %s.\n",
-		           __func__, fw_path);
-		goto error;
+		pr_err("Can't load firmware file %s.\n", fw_path);
+		goto exit;
 	}
-	SYS_BUG(!firmware->data);
 
-	buf = xr_kmalloc(DOWNLOAD_BLOCK_SIZE, true);
+	buf = kmalloc(DOWNLOAD_BLOCK_SIZE, GFP_KERNEL | GFP_DMA);
 	if (!buf) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't allocate firmware buffer.\n", __func__);
+		pr_err("Can't allocate firmware load buffer.\n");
 		ret = -ENOMEM;
-		goto error;
+		goto firmware_release;
 	}
 
 	/* Check if the bootloader is ready */
-	for (i = 0; i < 100; i++/*= 1 + i / 2*/) {
+	for (i = 0; i < 100; i += 1 + i / 2) {
 		APB_READ(DOWNLOAD_IMAGE_SIZE_REG, val32);
 		if (val32 == DOWNLOAD_I_AM_HERE)
 			break;
-		mdelay(10);
+		mdelay(i);
 	} /* End of for loop */
+
 	if (val32 != DOWNLOAD_I_AM_HERE) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: bootloader is not ready.\n", __func__);
+		pr_err("Bootloader is not ready.\n");
 		ret = -ETIMEDOUT;
-		goto error;
+		goto free_buffer;
 	}
 
 	/* Calculcate number of download blocks */
@@ -254,55 +261,61 @@ static int cw1200_firmware(struct cw1200_common *hw_priv)
 
 	/* Updating the length in Download Ctrl Area */
 	val32 = firmware->size; /* Explicit cast from size_t to u32 */
-	APB_WRITE(DOWNLOAD_IMAGE_SIZE_REG, val32);
+	APB_WRITE2(DOWNLOAD_IMAGE_SIZE_REG, val32);
 
 	/* Firmware downloading loop */
-	for (block = 0; block < num_blocks ; block++) {
+	for (block = 0; block < num_blocks; block++) {
 		size_t tx_size;
 		size_t block_size;
 
 		/* check the download status */
 		APB_READ(DOWNLOAD_STATUS_REG, val32);
 		if (val32 != DOWNLOAD_PENDING) {
-			cw1200_dbg(XRADIO_DBG_ERROR, "%s: bootloader reported error %d.\n",
-			           __func__, val32);
+			pr_err("Bootloader reported error %d.\n", val32);
 			ret = -EIO;
-			goto error;
+			goto free_buffer;
 		}
 
 		/* loop until put - get <= 24K */
 		for (i = 0; i < 100; i++) {
 			APB_READ(DOWNLOAD_GET_REG, get);
-			if ((put - get) <= (DOWNLOAD_FIFO_SIZE - DOWNLOAD_BLOCK_SIZE))
+			if ((put - get) <=
+			    (DOWNLOAD_FIFO_SIZE - DOWNLOAD_BLOCK_SIZE))
 				break;
 			mdelay(i);
 		}
 
 		if ((put - get) > (DOWNLOAD_FIFO_SIZE - DOWNLOAD_BLOCK_SIZE)) {
-			cw1200_dbg(XRADIO_DBG_ERROR, "%s: Timeout waiting for FIFO.\n", __func__);
+			pr_err("Timeout waiting for FIFO.\n");
 			ret = -ETIMEDOUT;
-			goto error;
+			goto free_buffer;
 		}
 
 		/* calculate the block size */
-		tx_size = block_size = min((size_t)(firmware->size - put), (size_t)DOWNLOAD_BLOCK_SIZE);
+		tx_size = block_size = min_t(size_t, firmware->size - put,
+					DOWNLOAD_BLOCK_SIZE);
+
 		memcpy(buf, &firmware->data[put], block_size);
 		if (block_size < DOWNLOAD_BLOCK_SIZE) {
-			memset(&buf[block_size], 0, DOWNLOAD_BLOCK_SIZE - block_size);
+			memset(&buf[block_size], 0,
+			       DOWNLOAD_BLOCK_SIZE - block_size);
 			tx_size = DOWNLOAD_BLOCK_SIZE;
 		}
 
 		/* send the block to sram */
-		ret = cw1200_apb_write(hw_priv, APB_ADDR(DOWNLOAD_FIFO_OFFSET + (put & (DOWNLOAD_FIFO_SIZE - 1))), 
-		                       buf, tx_size);
+		ret = cw1200_apb_write(priv,
+			CW1200_APB(DOWNLOAD_FIFO_OFFSET +
+				   (put & (DOWNLOAD_FIFO_SIZE - 1))),
+			buf, tx_size);
 		if (ret < 0) {
-			cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't write block at line %d.\n", __func__, __LINE__);
-			goto error;
+			pr_err("Can't write firmware block @ %d!\n",
+			       put & (DOWNLOAD_FIFO_SIZE - 1));
+			goto free_buffer;
 		}
 
 		/* update the put register */
 		put += block_size;
-		APB_WRITE(DOWNLOAD_PUT_REG, put);
+		APB_WRITE2(DOWNLOAD_PUT_REG, put);
 	} /* End of firmware download loop */
 
 	/* Wait for the download completion */
@@ -313,25 +326,69 @@ static int cw1200_firmware(struct cw1200_common *hw_priv)
 		mdelay(i);
 	}
 	if (val32 != DOWNLOAD_SUCCESS) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: wait for download completion failed. " \
-		           "Read: 0x%.8X\n", __func__, val32);
+		pr_err("Wait for download completion failed: 0x%.8X\n", val32);
 		ret = -ETIMEDOUT;
-		goto error;
+		goto free_buffer;
 	} else {
-		cw1200_dbg(XRADIO_DBG_ALWY, "Firmware completed.\n");
+		pr_info("Firmware download completed.\n");
 		ret = 0;
 	}
 
-error:
-	if(buf)
-		kfree(buf);
-	if (firmware) {
-		release_firmware(firmware);
-	}
+free_buffer:
+	kfree(buf);
+firmware_release:
+	release_firmware(firmware);
+exit:
 	return ret;
+
+#undef APB_WRITE
+#undef APB_WRITE2
+#undef APB_READ
+#undef REG_WRITE
+#undef REG_READ
 }
 
-static int cw1200_bootloader(struct cw1200_common *hw_priv)
+
+static int config_reg_read(struct cw1200_common *priv, u32 *val)
+{
+	/* TODO: Support Allwinner xr819 */
+	switch (priv->hw_type) {
+	case HIF_9000_SILICON_VERSATILE: {
+		u16 val16;
+		int ret = cw1200_reg_read_16(priv,
+					     ST90TDS_CONFIG_REG_ID,
+					     &val16);
+		if (ret < 0)
+			return ret;
+		*val = val16;
+		return 0;
+	}
+	case HIF_8601_VERSATILE:
+	case HIF_8601_SILICON:
+	default:
+		cw1200_reg_read_32(priv, ST90TDS_CONFIG_REG_ID, val);
+		break;
+	}
+	return 0;
+}
+
+static int config_reg_write(struct cw1200_common *priv, u32 val)
+{
+	/* TODO: Support Allwinner xr819 */
+	switch (priv->hw_type) {
+	case HIF_9000_SILICON_VERSATILE:
+		return cw1200_reg_write_16(priv,
+					   ST90TDS_CONFIG_REG_ID,
+					   (u16)val);
+	case HIF_8601_VERSATILE:
+	case HIF_8601_SILICON:
+	default:
+		return cw1200_reg_write_32(priv, ST90TDS_CONFIG_REG_ID, val);
+	}
+	return 0;
+}
+
+static int cw1200_bootloader(struct cw1200_common *priv)
 {
 	int ret = -1;
 	u32 i = 0;
@@ -342,7 +399,7 @@ static int cw1200_bootloader(struct cw1200_common *hw_priv)
 	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	/* Load a bootloader file */
-	ret = request_firmware(&bootloader, bl_path, hw_priv->pdev);
+	ret = request_firmware(&bootloader, bl_path, priv->pdev);
 	if (ret) {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't load bootloader file %s.\n",
 		           __func__, bl_path);
@@ -370,40 +427,47 @@ error:
 	return ret;  
 }
 
-bool test_retry = false;
-int cw1200_load_firmware(struct cw1200_common *hw_priv)
+int cw1200_load_firmware(struct cw1200_common *priv)
 {
 	int ret;
 	int i;
 	u32 val32;
 	u16 val16;
+	int major_revision = -1;
+
 	u32 dpll = 0;
-	int major_revision;
-	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
-	SYS_BUG(!hw_priv);
-
-	/* Read CONFIG Register Value - We will read 32 bits */
-	ret = cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+	/* Read CONFIG Register */
+	ret = cw1200_reg_read_32(priv, HIF_CONFIG_REG_ID, &val32);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't read config register, err=%d.\n",
-		           __func__, ret);
+		pr_err("Can't read config register.\n");
 		return ret;
 	}
 
-	//check hardware type and revision.
-	hw_priv->hw_type = cw1200_get_hw_type(val32, &major_revision);
-	switch (hw_priv->hw_type) {
+	if (val32 == 0 || val32 == 0xffffffff) {
+		pr_err("Bad config register value (0x%08x)\n", val32);
+		ret = -EIO;
+		goto out;
+	}
+
+	priv->hw_type = cw1200_get_hw_type(val32, &major_revision);
+	if (priv->hw_type < 0) {
+		pr_err("Can't deduce hardware type.\n");
+		ret = -ENOTSUPP;
+		return ret;
+	}
+
+	switch (priv->hw_type) {
 	case HIF_HW_TYPE_XRADIO:
 		cw1200_dbg(XRADIO_DBG_NIY, "%s: HW_TYPE_XRADIO detected.\n", __func__);
 		break;
 	default:
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: Unknown hardware: %d.\n",  
-		           __func__, hw_priv->hw_type);
+		           __func__, priv->hw_type);
 		return -ENOTSUPP;
 	}
 	if (major_revision == 4) {
-		hw_priv->hw_revision = XR819_HW_REV0;
+		priv->hw_revision = XR819_HW_REV0;
 		cw1200_dbg(XRADIO_DBG_ALWY, "XRADIO_HW_REV 1.0 detected.\n");
 	} else {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: Unsupported major revision %d.\n",
@@ -412,69 +476,71 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 	}
 	
 	//load sdd file, and get config from it.
-	ret = cw1200_parse_sdd(hw_priv, &dpll);
+	ret = cw1200_parse_sdd(priv, &dpll);
 	if (ret < 0) {
 		return ret;
 	}
 
-	//set dpll initial value and check.
-	ret = cw1200_reg_write_32(hw_priv, HIF_TSET_GEN_R_W_REG_ID, dpll);
+	/* Set DPLL Reg value, and read back to confirm writes work */
+	ret = cw1200_reg_write_32(priv, HIF_TSET_GEN_R_W_REG_ID, dpll);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't write DPLL register.\n", __func__);
+		pr_err("Can't write DPLL register.\n");
 		goto out;
 	}
+
 	msleep(5);
-	ret = cw1200_reg_read_32(hw_priv, HIF_TSET_GEN_R_W_REG_ID, &val32);
+
+	ret = cw1200_reg_read_32(priv,
+		HIF_TSET_GEN_R_W_REG_ID, &val32);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't read DPLL register.\n", __func__);
+		pr_err("Can't read DPLL register.\n");
 		goto out;
 	}
+
 	if (val32 != dpll) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: unable to initialise " \
-		           "DPLL register. Wrote 0x%.8X, read 0x%.8X.\n",
-		           __func__, dpll, val32);
+		pr_err("Unable to initialise DPLL register. Wrote 0x%.8X, Read 0x%.8X.\n",
+		       dpll, val32);
 		ret = -EIO;
 		goto out;
 	}
 
 	/* Set wakeup bit in device */
-	ret = cw1200_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, &val16);
+	ret = cw1200_reg_read_16(priv, HIF_CONTROL_REG_ID, &val16);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: set_wakeup: can't read control register.\n", 
-		           __func__);
+		pr_err("set_wakeup: can't read control register.\n");
 		goto out;
 	}
-	ret = cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, val16 | HIF_CTRL_WUP_BIT);
+
+	ret = cw1200_reg_write_16(priv, HIF_CONTROL_REG_ID,
+		val16 | HIF_CTRL_WUP_BIT);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: set_wakeup: can't write control register.\n",
-		           __func__);
+		pr_err("set_wakeup: can't write control register.\n");
 		goto out;
 	}
 
 	/* Wait for wakeup */
-	for (i = 0 ; i < 300 ; i += 1 + i / 2) {
-		ret = cw1200_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, &val16);
+	for (i = 0; i < 300; i += (1 + i / 2)) {
+		ret = cw1200_reg_read_16(priv,
+			HIF_CONTROL_REG_ID, &val16);
 		if (ret < 0) {
-			cw1200_dbg(XRADIO_DBG_ERROR, "%s: Wait_for_wakeup: "
-			           "can't read control register.\n", __func__);
+			pr_err("wait_for_wakeup: can't read control register.\n");
 			goto out;
 		}
-		if (val16 & HIF_CTRL_RDY_BIT) {
+
+		if (val16 & HIF_CTRL_RDY_BIT)
 			break;
-		}
+
 		msleep(i);
 	}
+
 	if ((val16 & HIF_CTRL_RDY_BIT) == 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: Wait for wakeup:" 
-		           "device is not responding.\n", __func__);
+		pr_err("wait_for_wakeup: device is not responding.\n");
 		ret = -ETIMEDOUT;
 		goto out;
-	} else {
-		cw1200_dbg(XRADIO_DBG_NIY, "WLAN device is ready.\n");
 	}
 
 	/* Checking for access mode and download firmware. */
-	ret = cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+	ret = cw1200_reg_read_32(priv, HIF_CONFIG_REG_ID, &val32);
 	if (ret < 0) {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: check_access_mode: "
 		           "can't read config register.\n", __func__);
@@ -482,13 +548,13 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 	}
 	if (val32 & HIF_CONFIG_ACCESS_MODE_BIT) {
 		/* Down bootloader. */
-		ret = cw1200_bootloader(hw_priv);
+		ret = cw1200_bootloader(priv);
 		if (ret < 0) {
 			cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't download bootloader.\n", __func__);
 			goto out;
 		}
 		/* Down firmware. */
-		ret = cw1200_firmware(hw_priv);
+		ret = cw1200_firmware(priv);
 		if (ret < 0) {
 			cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't download firmware.\n", __func__);
 			goto out;
@@ -500,24 +566,24 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 	}
 
 	/* Register Interrupt Handler */
-	ret = hw_priv->hwbus_ops->irq_subscribe(hw_priv->hwbus_priv, 
+	ret = priv->hwbus_ops->irq_subscribe(priv->hwbus_priv, 
 	                                      (hwbus_irq_handler)cw1200_irq_handler, 
-	                                       hw_priv);
+	                                       priv);
 	if (ret < 0) {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't register IRQ handler.\n", __func__);
 		goto out;
 	}
 
-	if (HIF_HW_TYPE_XRADIO  == hw_priv->hw_type) {
+	if (HIF_HW_TYPE_XRADIO  == priv->hw_type) {
 		/* If device is XRADIO the IRQ enable/disable bits
 		 * are in CONFIG register */
-		ret = cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+		ret = cw1200_reg_read_32(priv, HIF_CONFIG_REG_ID, &val32);
 		if (ret < 0) {
 			cw1200_dbg(XRADIO_DBG_ERROR, "%s: enable_irq: can't read " \
 			           "config register.\n", __func__);
 			goto unsubscribe;
 		}
-		ret = cw1200_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
+		ret = cw1200_reg_write_32(priv, HIF_CONFIG_REG_ID,
 			val32 | HIF_CONF_IRQ_RDY_ENABLE);
 		if (ret < 0) {
 			cw1200_dbg(XRADIO_DBG_ERROR, "%s: enable_irq: can't write " \
@@ -528,13 +594,13 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 		/* If device is XRADIO the IRQ enable/disable bits
 		 * are in CONTROL register */
 		/* Enable device interrupts - Both DATA_RDY and WLAN_RDY */
-		ret = cw1200_reg_read_16(hw_priv, HIF_CONFIG_REG_ID, &val16);
+		ret = cw1200_reg_read_16(priv, HIF_CONFIG_REG_ID, &val16);
 		if (ret < 0) {
 			cw1200_dbg(XRADIO_DBG_ERROR, "%s: enable_irq: can't read " \
 			           "control register.\n", __func__);
 			goto unsubscribe;
 		}
-		ret = cw1200_reg_write_16(hw_priv, HIF_CONFIG_REG_ID, 
+		ret = cw1200_reg_write_16(priv, HIF_CONFIG_REG_ID, 
 		                          val16 | HIF_CTRL_IRQ_RDY_ENABLE);
 		if (ret < 0) {
 			cw1200_dbg(XRADIO_DBG_ERROR, "%s: enable_irq: can't write " \
@@ -545,46 +611,41 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 	}
 
 	/* Configure device for MESSSAGE MODE */
-	ret = cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+	ret = cw1200_reg_read_32(priv, HIF_CONFIG_REG_ID, &val32);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: set_mode: can't read config register.\n",
-		           __func__);
+		pr_err("Can't read config register.\n");
 		goto unsubscribe;
 	}
-	ret = cw1200_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
+	ret = cw1200_reg_write_32(priv, HIF_CONFIG_REG_ID,
 	                          val32 & ~HIF_CONFIG_ACCESS_MODE_BIT);
 	if (ret < 0) {
-		cw1200_dbg(XRADIO_DBG_ERROR, "%s: set_mode: can't write config register.\n",
-			         __func__);
+		pr_err("Can't write config register.\n");
 		goto unsubscribe;
 	}
 
 	/* Unless we read the CONFIG Register we are
-	 * not able to get an interrupt */
+	 * not able to get an interrupt
+	 */
 	mdelay(10);
-	cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+	cw1200_reg_read_32(priv, HIF_CONFIG_REG_ID, &val32);
 	return 0;
 
 unsubscribe:
-	hw_priv->hwbus_ops->irq_unsubscribe(hw_priv->hwbus_priv);
+	priv->hwbus_ops->irq_unsubscribe(priv->hwbus_priv);
 out:
-	if (hw_priv->sdd) {
-		release_firmware(hw_priv->sdd);
-		hw_priv->sdd = NULL;
+	if (priv->sdd) {
+		release_firmware(priv->sdd);
+		priv->sdd = NULL;
 	}
 	return ret;
 }
 
-int cw1200_dev_deinit(struct cw1200_common *hw_priv)
+int cw1200_dev_deinit(struct cw1200_common *priv)
 {
-	hw_priv->hwbus_ops->irq_unsubscribe(hw_priv->hwbus_priv);
-	if (hw_priv->sdd) {
-		release_firmware(hw_priv->sdd);
-		hw_priv->sdd = NULL;
+	priv->hwbus_ops->irq_unsubscribe(priv->hwbus_priv);
+	if (priv->sdd) {
+		release_firmware(priv->sdd);
+		priv->sdd = NULL;
 	}
 	return 0;
 }
-#undef APB_WRITE
-#undef APB_READ
-#undef REG_WRITE
-#undef REG_READ
