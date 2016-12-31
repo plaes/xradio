@@ -1018,8 +1018,7 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			break;
 #endif /* CONFIG_XRADIO_WAPI_SUPPORT */
 		default:
-			sta_printk(XRADIO_DBG_ERROR,"%s: key->cipher unknown(%d)!\n",
-			           __func__, key->cipher);
+			pr_warn("Unhandled key type %d\n", key->cipher);
 			cw1200_free_key(hw_priv, idx);
 			ret = -EOPNOTSUPP;
 			goto finally;

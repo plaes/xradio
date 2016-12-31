@@ -1,8 +1,9 @@
 /*
- * STA and AP APIs for XRadio drivers
+ * Mac80211 AP API for ST-Ericsson CW1200 drivers
  *
+ * Copyright (c) 2010, ST-Ericsson
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
  * Copyright (c) 2013, XRadio
- * Author: XRadio
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -46,10 +47,11 @@ static void __cw1200_sta_notify(struct cw1200_vif *priv,
 /* ******************************************************************** */
 /* AP API */
 int cw1200_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-                   struct ieee80211_sta *sta)
+		   struct ieee80211_sta *sta)
 {
-	struct cw1200_sta_priv *sta_priv = (struct cw1200_sta_priv *)&sta->drv_priv;
 	struct cw1200_vif *priv = xrwl_get_vif_from_ieee80211(vif);
+	struct cw1200_sta_priv *sta_priv =
+			(struct cw1200_sta_priv *)&sta->drv_priv;
 	struct cw1200_link_entry *entry;
 	struct sk_buff *skb;
 #ifdef AP_AGGREGATE_FW_FIX
@@ -62,13 +64,12 @@ int cw1200_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	SYS_WARN(priv->if_id == XRWL_GENERIC_IF_ID);
 #endif
 
-	if (priv->mode != NL80211_IFTYPE_AP) {
+	if (priv->mode != NL80211_IFTYPE_AP)
 		return 0;
-	}
 
 	sta_priv->priv = priv;
 	sta_priv->link_id = cw1200_find_link_id(priv, sta->addr);
-	if (SYS_WARN(!sta_priv->link_id)) {
+	if (WARN_ON(!sta_priv->link_id)) {
 		/* Impossible error */
 		ap_printk(XRADIO_DBG_ERROR,"No more link IDs available.\n");
 		return -ENOENT;
@@ -77,9 +78,8 @@ int cw1200_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	entry = &priv->link_id_db[sta_priv->link_id - 1];
 	spin_lock_bh(&priv->ps_state_lock);
 	if ((sta->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK) ==
-	     IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK) {
+					IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
 		priv->sta_asleep_mask |= BIT(sta_priv->link_id);
-	}
 	entry->status = XRADIO_LINK_HARD;
 	while ((skb = skb_dequeue(&entry->rx_queue)))
 		ieee80211_rx_irqsafe(priv->hw, skb);
@@ -109,16 +109,12 @@ int cw1200_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct cw1200_vif *priv = xrwl_get_vif_from_ieee80211(vif);
 	struct cw1200_link_entry *entry;
 
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-
 #ifdef P2P_MULTIVIF
 	SYS_WARN(priv->if_id == XRWL_GENERIC_IF_ID);
 #endif
 
-	if (priv->mode != NL80211_IFTYPE_AP || !sta_priv->link_id) {
-		ap_printk(XRADIO_DBG_NIY, "no station to remove\n");
+	if (priv->mode != NL80211_IFTYPE_AP || !sta_priv->link_id)
 		return 0;
-	}
 
 	entry = &priv->link_id_db[sta_priv->link_id - 1];
 	spin_lock_bh(&priv->ps_state_lock);
@@ -155,8 +151,6 @@ static void __cw1200_sta_notify(struct cw1200_vif *priv,
 	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	u32 bit, prev;
 
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-
 	/* Zero link id means "for all link IDs" */
 	if (link_id)
 		bit = BIT(link_id);
@@ -170,9 +164,9 @@ static void __cw1200_sta_notify(struct cw1200_vif *priv,
 	case STA_NOTIFY_SLEEP:
 		if (!prev) {
 			if (priv->buffered_multicasts &&
-					!priv->sta_asleep_mask)
+			    !priv->sta_asleep_mask)
 				queue_work(hw_priv->workqueue,
-					&priv->multicast_start_work);
+					   &priv->multicast_start_work);
 			priv->sta_asleep_mask |= bit;
 		}
 		break;
@@ -181,9 +175,9 @@ static void __cw1200_sta_notify(struct cw1200_vif *priv,
 			priv->sta_asleep_mask &= ~bit;
 			priv->pspoll_mask &= ~bit;
 			if (priv->tx_multicast && link_id &&
-					!priv->sta_asleep_mask)
+			    !priv->sta_asleep_mask)
 				queue_work(hw_priv->workqueue,
-					&priv->multicast_stop_work);
+					   &priv->multicast_stop_work);
 			cw1200_bh_wakeup(hw_priv);
 		}
 		break;
@@ -196,9 +190,8 @@ void cw1200_sta_notify(struct ieee80211_hw *dev,
 		       struct ieee80211_sta *sta)
 {
 	struct cw1200_vif *priv = xrwl_get_vif_from_ieee80211(vif);
-	struct cw1200_sta_priv *sta_priv = (struct cw1200_sta_priv *)&sta->drv_priv;
-
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	struct cw1200_sta_priv *sta_priv =
+		(struct cw1200_sta_priv *)&sta->drv_priv;
 
 #ifdef P2P_MULTIVIF
 	SYS_WARN(priv->if_id == XRWL_GENERIC_IF_ID);
@@ -211,18 +204,16 @@ void cw1200_sta_notify(struct ieee80211_hw *dev,
 static void cw1200_ps_notify(struct cw1200_vif *priv,
 		      int link_id, bool ps)
 {
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-
-	if (link_id > MAX_STA_IN_AP_MODE) {
-		ap_printk(XRADIO_DBG_WARN,"link_id is invalid=%d\n", link_id);
+	if (link_id > MAX_STA_IN_AP_MODE)
 		return;
-	}
 
-	ap_printk(XRADIO_DBG_NIY, "%s for LinkId: %d. STAs asleep: %.8X\n",
-	          ps ? "Stop" : "Start", link_id, priv->sta_asleep_mask);
+	pr_debug("%s for LinkId: %d. STAs asleep: %.8X\n",
+		 ps ? "Stop" : "Start",
+		 link_id, priv->sta_asleep_mask);
 
 	/* TODO:COMBO: __cw1200_sta_notify changed. */
-	__cw1200_sta_notify(priv, ps ? STA_NOTIFY_SLEEP : STA_NOTIFY_AWAKE, link_id);
+	__cw1200_sta_notify(priv,
+			    ps ? STA_NOTIFY_SLEEP : STA_NOTIFY_AWAKE, link_id);
 }
 
 static int cw1200_set_tim_impl(struct cw1200_vif *priv, bool aid0_bit_set)
@@ -234,11 +225,11 @@ static int cw1200_set_tim_impl(struct cw1200_vif *priv, bool aid0_bit_set)
 		.count = 1,
 	};
 	u16 tim_offset, tim_length;
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-	ap_printk(XRADIO_DBG_MSG, "%s mcast: %s.\n", __func__, 
-	          aid0_bit_set ? "ena" : "dis");
 
-	skb = ieee80211_beacon_get_tim(priv->hw, priv->vif, &tim_offset, &tim_length);
+	pr_debug("[AP] mcast: %s.\n", aid0_bit_set ? "ena" : "dis");
+
+	skb = ieee80211_beacon_get_tim(priv->hw, priv->vif,
+			&tim_offset, &tim_length);
 	if (!skb) {
 		__cw1200_flush(hw_priv, true, priv->if_id);
 		return -ENOENT;
@@ -246,7 +237,8 @@ static int cw1200_set_tim_impl(struct cw1200_vif *priv, bool aid0_bit_set)
 
 	if (tim_offset && tim_length >= 6) {
 		/* Ignore DTIM count from mac80211:
-		 * firmware handles DTIM internally. */
+		 * firmware handles DTIM internally.
+		 */
 		skb->data[tim_offset + 2] = 0;
 
 		/* Set/reset aid0 bit */
@@ -258,7 +250,7 @@ static int cw1200_set_tim_impl(struct cw1200_vif *priv, bool aid0_bit_set)
 
 	update_ie.ies = &skb->data[tim_offset];
 	update_ie.length = tim_length;
-	//filter same tim info, yangfh
+	// filter same tim info, yangfh
 	if(memcmp(priv->last_tim, update_ie.ies, tim_length)) {
 		SYS_WARN(wsm_update_ie(hw_priv, &update_ie, priv->if_id));
 		memcpy(priv->last_tim, update_ie.ies, tim_length);
@@ -274,10 +266,9 @@ static int cw1200_set_tim_impl(struct cw1200_vif *priv, bool aid0_bit_set)
 
 void cw1200_set_tim_work(struct work_struct *work)
 {
-	struct cw1200_vif *priv = container_of(work, struct cw1200_vif, set_tim_work);
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-
-	cw1200_set_tim_impl(priv, priv->aid0_bit_set);
+	struct cw1200_vif *priv =
+		container_of(work, struct cw1200_vif, set_tim_work);
+	(void)cw1200_set_tim_impl(priv, priv->aid0_bit_set);
 }
 
 int cw1200_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
@@ -285,8 +276,6 @@ int cw1200_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
 {
 	struct cw1200_sta_priv *sta_priv = (struct cw1200_sta_priv *)&sta->drv_priv;
 	struct cw1200_vif *priv = sta_priv->priv;
-
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 #ifdef P2P_MULTIVIF
 	SYS_WARN(priv->if_id == XRWL_GENERIC_IF_ID);
@@ -337,7 +326,6 @@ static int cw1200_set_btcoexinfo(struct cw1200_vif *priv)
 {
 	struct wsm_override_internal_txrate arg;
 	int ret = 0;
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	if (priv->mode == NL80211_IFTYPE_STATION) {
 		/* Plumb PSPOLL and NULL template */
@@ -352,12 +340,12 @@ static int cw1200_set_btcoexinfo(struct cw1200_vif *priv)
 	if (!priv->vif->p2p) {
 		/* STATION mode */
 		if (priv->bss_params.operationalRateSet & ~0xF) {
-			ap_printk(XRADIO_DBG_NIY, "STA has ERP rates\n");
+			pr_debug("[STA] STA has ERP rates\n");
 			/* G or BG mode */
 			arg.internalTxRate = (__ffs(
 			priv->bss_params.operationalRateSet & ~0xF));
 		} else {
-			ap_printk(XRADIO_DBG_NIY, "STA has non ERP rates\n");
+			pr_debug("[STA] STA has non ERP rates\n");
 			/* B only mode */
 			arg.internalTxRate = (__ffs(
 			priv->association_mode.basicRateSet));
@@ -376,9 +364,9 @@ static int cw1200_set_btcoexinfo(struct cw1200_vif *priv)
 	          "nonErpInternalTxRate: %x\n", priv->mode, arg.internalTxRate,
 	          arg.nonErpInternalTxRate);
 
-	ret = SYS_WARN(wsm_write_mib(xrwl_vifpriv_to_hwpriv(priv),
+	ret = wsm_write_mib(xrwl_vifpriv_to_hwpriv(priv),
 	               WSM_MIB_ID_OVERRIDE_INTERNAL_TX_RATE, 
-	               &arg, sizeof(arg), priv->if_id));
+	               &arg, sizeof(arg), priv->if_id);
 
 	return ret;
 }
@@ -586,7 +574,7 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
-		ap_printk(XRADIO_DBG_NIY, "CHANGED_BEACON_INT\n");
+		pr_debug("CHANGED_BEACON_INT\n");
 		/* Restart AP only when connected */
 		if (priv->join_status == XRADIO_JOIN_STATUS_AP)
 			SYS_WARN(cw1200_update_beaconing(priv));
@@ -839,7 +827,8 @@ void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			/* TODO: It's not a correct way of setting threshold.
 			 * Upper and lower must be set equal here and adjusted
 			 * in callback. However current implementation is much
-			 * more relaible and stable. */
+			 * more reliable and stable.
+			 */
 			if (priv->cqm_use_rssi) {
 				threshold.upperThreshold = info->cqm_rssi_thold + info->cqm_rssi_hyst;
 				threshold.lowerThreshold = info->cqm_rssi_thold;
@@ -1038,7 +1027,6 @@ void cw1200_multicast_stop_work(struct work_struct *work)
 {
 	struct cw1200_vif *priv =
 		container_of(work, struct cw1200_vif, multicast_stop_work);
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	if (priv->aid0_bit_set) {
 		del_timer_sync(&priv->mcast_timeout);
@@ -1062,7 +1050,8 @@ void cw1200_mcast_timeout(unsigned long arg)
 	spin_unlock_bh(&priv->ps_state_lock);
 }
 
-int cw1200_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+int cw1200_ampdu_action(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
                         enum ieee80211_ampdu_mlme_action action,
                         struct ieee80211_sta *sta, 
                         u16 tid, u16 *ssn, u8 buf_size)
@@ -1138,14 +1127,13 @@ void cw1200_suspend_resume(struct cw1200_vif *priv, struct wsm_suspend_resume *a
 static int cw1200_upload_beacon(struct cw1200_vif *priv)
 {
 	int ret = 0;
-	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct ieee80211_mgmt *mgmt;
 	struct wsm_template_frame frame = {
 		.frame_type = WSM_FRAME_TYPE_BEACON,
 	};
-	struct ieee80211_mgmt *mgmt;
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	u8 *erp_inf, *ies, *ht_info;
 	u32 ies_len;
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	if (priv->vif->p2p || hw_priv->channel->band == IEEE80211_BAND_5GHZ)
 		frame.rate = WSM_TRANSMIT_RATE_6;
@@ -1363,7 +1351,6 @@ static int cw1200_enable_beaconing(struct cw1200_vif *priv,
 	struct wsm_beacon_transmit transmit = {
 		.enableBeaconing = enable,
 	};
-	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	return wsm_beacon_transmit(hw_priv, &transmit, priv->if_id);
 }
