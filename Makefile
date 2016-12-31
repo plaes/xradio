@@ -14,7 +14,7 @@ cw1200_wlan-y := \
 	debug.o
 
 cw1200_wlan-$(CONFIG_PM)		+= pm.o
-cw1200_wlan-$(CONFIG_XRADIO_SDIO)	+= sdio.o
+cw1200_wlan-$(CONFIG_XRADIO_SDIO)	+= cw1200_sdio.o
 cw1200_wlan-$(CONFIG_XRADIO_ITP)	+= itp.o
 
 ccflags-y += -DP2P_MULTIVIF
