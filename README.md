@@ -1,7 +1,7 @@
 Allwinner xr819 driver to cw1200 driver port
 ============================================
 
-* ap.[ch] - missing from cw1200
+* ap.[h] - missing from cw1200
 * bh.[ch]
 * common.[ch] - missing from cw1200
 * cw1200.h
