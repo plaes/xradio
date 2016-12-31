@@ -264,7 +264,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 	    (hw_priv->advanceScanElems.scanMode == XRADIO_SCAN_MEASUREMENT_ACTIVE) &&
 	    (priv->join_status == XRADIO_JOIN_STATUS_STA) &&
 	    (hw_priv->channel->hw_value == advance_scan_req_channel)) {
-		SYS_BUG(hw_priv->scan.req);
+		BUG_ON(hw_priv->scan.req);
 		/* wsm_lock_tx(hw_priv); */
 		wsm_vif_lock_tx(priv);
 		hw_priv->scan.if_id = priv->if_id;
@@ -309,7 +309,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 
 		wsm_vif_lock_tx(priv);
 
-		SYS_BUG(hw_priv->scan.req);
+		BUG_ON(hw_priv->scan.req);
 		hw_priv->scan.req     = req;
 		hw_priv->scan.n_ssids = 0;
 		hw_priv->scan.status  = 0;
@@ -323,7 +323,7 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 
 		for (i = 0; i < req->n_ssids; ++i) {
 			struct wsm_ssid *dst = &hw_priv->scan.ssids[hw_priv->scan.n_ssids];
-			SYS_BUG(req->ssids[i].ssid_len > sizeof(dst->ssid));
+			BUG_ON(req->ssids[i].ssid_len > sizeof(dst->ssid));
 			memcpy(&dst->ssid[0], req->ssids[i].ssid, sizeof(dst->ssid));
 			dst->length = req->ssids[i].ssid_len;
 			++hw_priv->scan.n_ssids;
@@ -411,7 +411,7 @@ int cw1200_hw_sched_scan_start(struct ieee80211_hw *hw,
 	}
 
 	wsm_lock_tx(hw_priv);
-	SYS_BUG(hw_priv->scan.req);
+	BUG_ON(hw_priv->scan.req);
 	hw_priv->scan.sched_req = req;
 	hw_priv->scan.n_ssids = 0;
 	hw_priv->scan.status = 0;
@@ -423,7 +423,7 @@ int cw1200_hw_sched_scan_start(struct ieee80211_hw *hw,
 	for (i = 0; i < req->n_ssids; ++i) {
 		u8 j;
 		struct wsm_ssid *dst = &hw_priv->scan.ssids[hw_priv->scan.n_ssids];
-		SYS_BUG(req->ssids[i].ssid_len > sizeof(dst->ssid));
+		BUG_ON(req->ssids[i].ssid_len > sizeof(dst->ssid));
 		memcpy(&dst->ssid[0], req->ssids[i].ssid, sizeof(dst->ssid));
 		dst->length = req->ssids[i].ssid_len;
 		++hw_priv->scan.n_ssids;
@@ -1035,8 +1035,8 @@ void cw1200_probe_work(struct work_struct *work)
 	int ret = 1;
 	scan_printk(XRADIO_DBG_MSG, "%s:Direct probe.\n", __func__);
 
-	SYS_BUG(queueId >= 4);
-	SYS_BUG(!hw_priv->channel);
+	BUG_ON(queueId >= 4);
+	BUG_ON(!hw_priv->channel);
 
 	mutex_lock(&hw_priv->conf_mutex);
 	if (unlikely(down_trylock(&hw_priv->scan.lock))) {
@@ -1131,9 +1131,9 @@ void cw1200_probe_work(struct work_struct *work)
 	if (!ret)
 		IEEE80211_SKB_CB(frame.skb)->flags |= IEEE80211_TX_STAT_ACK;
 #ifdef CONFIG_XRADIO_TESTMODE
-		SYS_BUG(cw1200_queue_remove(hw_priv, queue, hw_priv->pending_frame_id));
+		BUG_ON(cw1200_queue_remove(hw_priv, queue, hw_priv->pending_frame_id));
 #else
-		SYS_BUG(cw1200_queue_remove(queue, hw_priv->pending_frame_id));
+		BUG_ON(cw1200_queue_remove(queue, hw_priv->pending_frame_id));
 #endif
 
 	if (ret) {

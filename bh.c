@@ -46,7 +46,7 @@ int cw1200_register_bh(struct cw1200_common *hw_priv)
 	struct sched_param param = { .sched_priority = 1 };
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
-	SYS_BUG(hw_priv->bh_thread);
+	BUG_ON(hw_priv->bh_thread);
 	atomic_set(&hw_priv->bh_rx, 0);
 	atomic_set(&hw_priv->bh_tx, 0);
 	atomic_set(&hw_priv->bh_term, 0);
@@ -66,7 +66,7 @@ int cw1200_register_bh(struct cw1200_common *hw_priv)
 		err = PTR_ERR(hw_priv->bh_thread);
 		hw_priv->bh_thread = NULL;
 	} else {
-		SYS_WARN(sched_setscheduler(hw_priv->bh_thread, SCHED_FIFO, &param));
+		WARN_ON(sched_setscheduler(hw_priv->bh_thread, SCHED_FIFO, &param));
 #ifdef HAS_PUT_TASK_STRUCT
 		get_task_struct(hw_priv->bh_thread);
 #endif
@@ -80,7 +80,7 @@ void cw1200_unregister_bh(struct cw1200_common *hw_priv)
 	struct task_struct *thread = hw_priv->bh_thread;
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
-	if (SYS_WARN(!thread))
+	if (WARN_ON(!thread))
 		return;
 
 	hw_priv->bh_thread = NULL;
@@ -96,7 +96,7 @@ void cw1200_irq_handler(struct cw1200_common *hw_priv)
 
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 	DBG_BH_IRQ_ADD;
-	if (/* SYS_WARN */(hw_priv->bh_error))
+	if (/* WARN_ON */(hw_priv->bh_error))
 		return;
 #ifdef BH_USE_SEMAPHORE
 	atomic_add(1, &hw_priv->bh_rx);
@@ -114,7 +114,7 @@ void cw1200_irq_handler(struct cw1200_common *hw_priv)
 void cw1200_bh_wakeup(struct cw1200_common *hw_priv)
 {
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
-	if (SYS_WARN(hw_priv->bh_error))
+	if (WARN_ON(hw_priv->bh_error))
 		return;
 #ifdef BH_USE_SEMAPHORE
 	atomic_add(1, &hw_priv->bh_tx);
@@ -197,7 +197,7 @@ int cw1200_bh_resume(struct cw1200_common *hw_priv)
 		if ((priv->join_status == XRADIO_JOIN_STATUS_AP) && 
 			  (priv->multicast_filter.enable)) {
 			u8 count = 0;
-			SYS_WARN(wsm_request_buffer_request(priv, &count));
+			WARN_ON(wsm_request_buffer_request(priv, &count));
 			bh_printk(XRADIO_DBG_NIY, "Reclaim Buff %d \n",count);
 			break;
 		}
@@ -224,7 +224,7 @@ int wsm_release_tx_buffer(struct cw1200_common *hw_priv, int count)
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
 
 	hw_priv->hw_bufs_used -= count;
-	if (SYS_WARN(hw_priv->hw_bufs_used < 0)) {
+	if (WARN_ON(hw_priv->hw_bufs_used < 0)) {
 		/* Tx data patch stops when all but one hw buffers are used.
 		   So, re-start tx path in case we find hw_bufs_used equals
 		   numInputChBufs - 1.
@@ -248,7 +248,7 @@ int wsm_release_vif_tx_buffer(struct cw1200_common *hw_priv, int if_id, int coun
 	if (!hw_priv->hw_bufs_used_vif[if_id])
 		wake_up(&hw_priv->bh_evt_wq);
 
-	if (SYS_WARN(hw_priv->hw_bufs_used_vif[if_id] < 0))
+	if (WARN_ON(hw_priv->hw_bufs_used_vif[if_id] < 0))
 		ret = -1;
 	return ret;
 }
@@ -278,13 +278,13 @@ int wsm_release_buffer_to_fw(struct cw1200_vif *priv, int count)
 
 			/* Add sequence number */
 			wsm = (struct wsm_hdr *)buf->begin;
-			SYS_BUG(buf_len < sizeof(*wsm));
+			BUG_ON(buf_len < sizeof(*wsm));
 
 			wsm->id &= __cpu_to_le32(~WSM_TX_SEQ(WSM_TX_SEQ_MAX));
 			wsm->id |= cpu_to_le32(WSM_TX_SEQ(hw_priv->wsm_tx_seq));
 
 			bh_printk(XRADIO_DBG_NIY, "REL %d\n", hw_priv->wsm_tx_seq);
-			if (SYS_WARN(cw1200_data_write(hw_priv, buf->begin, buf_len))) {
+			if (WARN_ON(cw1200_data_write(hw_priv, buf->begin, buf_len))) {
 				break;
 			}
 			hw_priv->buf_released = 1;
@@ -300,7 +300,7 @@ int wsm_release_buffer_to_fw(struct cw1200_vif *priv, int count)
 	/* Should not be here */
 	bh_printk(XRADIO_DBG_ERROR,"Error, Less HW buf %d,%d.\n", 
 	          hw_priv->hw_bufs_used, hw_priv->wsm_caps.numInpChBufs);
-	SYS_WARN(1);
+	WARN_ON(1);
 	return -1;
 }
 #endif
@@ -435,11 +435,11 @@ static int cw1200_device_wakeup(struct cw1200_common *hw_priv)
 
 	/* To force the device to be always-on, the host sets WLAN_UP to 1 */
 	ret = cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, HIF_CTRL_WUP_BIT);
-	if (SYS_WARN(ret))
+	if (WARN_ON(ret))
 		return ret;
 
 	ret = cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
-	if (SYS_WARN(ret))
+	if (WARN_ON(ret))
 		return ret;
 
 	/* If the device returns WLAN_RDY as 1, the device is active and will
@@ -497,7 +497,7 @@ static int cw1200_bh(void *arg)
 		    atomic_read(&hw_priv->bh_rx) == 0   &&
 		    atomic_read(&hw_priv->bh_tx) == 0) {
 			bh_printk(XRADIO_DBG_MSG, "Device idle, can sleep.\n");
-			SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
+			WARN_ON(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
 			hw_priv->device_can_sleep = true;
 			status = HZ/8;    //125ms
 		} else if (hw_priv->hw_bufs_used) {
@@ -591,7 +591,7 @@ static int cw1200_bh(void *arg)
 				if (hw_priv->powersave_enabled && !hw_priv->device_can_sleep && !atomic_read(&hw_priv->recent_scan)) {
 					/* Device is idle, we can go to sleep. */
 					bh_printk(XRADIO_DBG_MSG, "Device idle(timeout), can sleep.\n");
-					SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
+					WARN_ON(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
 					hw_priv->device_can_sleep = true;
 				}
 				continue;
@@ -604,7 +604,7 @@ static int cw1200_bh(void *arg)
 			if (hw_priv->powersave_enabled) {
 				bh_printk(XRADIO_DBG_MSG,
 					 "Device idle(host suspend), can sleep.\n");
-				SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
+				WARN_ON(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
 				hw_priv->device_can_sleep = true;
 			}
 
@@ -650,7 +650,7 @@ data_proc:
 			u8 *data;
 			/* Check ctrl_reg again. */
 			if(!(ctrl_reg & HIF_CTRL_NEXT_LEN_MASK))
-				if (SYS_WARN(cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg))) {
+				if (WARN_ON(cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg))) {
 					hw_priv->bh_error = __LINE__;
 					break;
 				}
@@ -660,7 +660,7 @@ rx:
 				rx_burst = 0;
 				goto tx;
 			}
-			if (SYS_WARN((read_len < sizeof(struct wsm_hdr)) ||
+			if (WARN_ON((read_len < sizeof(struct wsm_hdr)) ||
 					(read_len > EFFECTIVE_BUF_SIZE))) {
 				bh_printk(XRADIO_DBG_ERROR, "ERR: Invalid read len: %d", read_len);
 				hw_priv->bh_error = __LINE__;
@@ -686,7 +686,7 @@ rx:
 
 			/* Get skb buffer. */
 			skb_rx = cw1200_get_skb(hw_priv, alloc_len);
-			if (SYS_WARN(!skb_rx)) {
+			if (WARN_ON(!skb_rx)) {
 				bh_printk(XRADIO_DBG_ERROR, "ERR: cw1200_get_skb failed.\n");
 				hw_priv->bh_error = __LINE__;
 				break;
@@ -694,14 +694,14 @@ rx:
 			skb_trim(skb_rx, 0);
 			skb_put(skb_rx, read_len);
 			data = skb_rx->data;
-			if (SYS_WARN(!data)) {
+			if (WARN_ON(!data)) {
 				bh_printk(XRADIO_DBG_ERROR, "ERR: skb data is NULL.\n");
 				hw_priv->bh_error = __LINE__;
 				break;
 			}
 
 			/* Read data from device. */
-			if (SYS_WARN(cw1200_data_read(hw_priv, data, alloc_len))) {
+			if (WARN_ON(cw1200_data_read(hw_priv, data, alloc_len))) {
 				hw_priv->bh_error = __LINE__;
 				break;
 			}
@@ -713,7 +713,7 @@ rx:
 			/* check wsm length. */
 			wsm = (struct wsm_hdr *)data;
 			wsm_len = __le32_to_cpu(wsm->len);
-			if (SYS_WARN(wsm_len > read_len)) {
+			if (WARN_ON(wsm_len > read_len)) {
 				bh_printk(XRADIO_DBG_ERROR, "wsm_len=%d.\n", wsm_len);
 				hw_priv->bh_error = __LINE__;
 				break;
@@ -746,7 +746,7 @@ rx:
 				hw_priv->bh_error = __LINE__;
 				break;
 			} else if (unlikely(!rx_resync)) {
-				if (SYS_WARN(wsm_seq != hw_priv->wsm_rx_seq)) {
+				if (WARN_ON(wsm_seq != hw_priv->wsm_rx_seq)) {
 					bh_printk(XRADIO_DBG_ERROR, "wsm_seq=%d.\n", wsm_seq);
 					hw_priv->bh_error = __LINE__;
 					break;
@@ -761,7 +761,7 @@ rx:
 			/* Process tx frames confirm. */
 			if (wsm_id & 0x0400) {
 				int rc = wsm_release_tx_buffer(hw_priv, 1);
-				if (SYS_WARN(rc < 0)) {
+				if (WARN_ON(rc < 0)) {
 					bh_printk(XRADIO_DBG_ERROR, "tx buffer < 0.\n");
 					hw_priv->bh_error = __LINE__;
 					break;
@@ -770,7 +770,7 @@ rx:
 			}
 
 			/* WSM processing frames. */
-			if (SYS_WARN(wsm_handle_rx(hw_priv, wsm_id, wsm, &skb_rx))) {
+			if (WARN_ON(wsm_handle_rx(hw_priv, wsm_id, wsm, &skb_rx))) {
 				bh_printk(XRADIO_DBG_ERROR, "wsm_handle_rx failed.\n");
 				hw_priv->bh_error = __LINE__;
 				break;
@@ -793,7 +793,7 @@ rx:
 		}
 
 tx:
-		SYS_BUG(hw_priv->hw_bufs_used > hw_priv->wsm_caps.numInpChBufs);
+		BUG_ON(hw_priv->hw_bufs_used > hw_priv->wsm_caps.numInpChBufs);
 		tx_burst = hw_priv->wsm_caps.numInpChBufs - hw_priv->hw_bufs_used;
 		tx_allowed = tx_burst > 0;
 		if (tx && tx_allowed) {
@@ -804,7 +804,7 @@ tx:
 			/* Wake up the devices */
 			if (hw_priv->device_can_sleep) {
 				ret = cw1200_device_wakeup(hw_priv);
-				if (SYS_WARN(ret < 0)) {
+				if (WARN_ON(ret < 0)) {
 					hw_priv->bh_error = __LINE__;
 					break;
 				} else if (ret) {
@@ -826,15 +826,15 @@ tx:
 				ret = wsm_get_tx(hw_priv, &data, &tx_len, &tx_burst, &vif_selected);
 			if (ret <= 0) {
 				wsm_release_tx_buffer(hw_priv, 1);
-				if (SYS_WARN(ret < 0)) {
+				if (WARN_ON(ret < 0)) {
 					bh_printk(XRADIO_DBG_ERROR, "wsm_get_tx=%d.\n", ret);
 					hw_priv->bh_error = __LINE__;
 					break;
 				}
 			} else {
 				wsm = (struct wsm_hdr *)data;
-				SYS_BUG(tx_len < sizeof(*wsm));
-				SYS_BUG(__le32_to_cpu(wsm->len) != tx_len);
+				BUG_ON(tx_len < sizeof(*wsm));
+				BUG_ON(__le32_to_cpu(wsm->len) != tx_len);
 
 				/* Continue to send next data if have any. */
 				atomic_add(1, &hw_priv->bh_tx);
@@ -863,7 +863,7 @@ tx:
 				wsm->id |= cpu_to_le32(WSM_TX_SEQ(hw_priv->wsm_tx_seq));
 
 				/* Send the data to devices. */
-				if (SYS_WARN(cw1200_data_write(hw_priv, data, tx_len))) {
+				if (WARN_ON(cw1200_data_write(hw_priv, data, tx_len))) {
 					wsm_release_tx_buffer(hw_priv, 1);
 					bh_printk(XRADIO_DBG_ERROR, "cw1200_data_write failed\n");
 					hw_priv->bh_error = __LINE__;

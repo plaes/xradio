@@ -864,7 +864,7 @@ static irqreturn_t cw1200_gpio_irq_handler(int irq, void *hwbus_priv)
 	struct hwbus_priv *self = (struct hwbus_priv *)hwbus_priv;
 	unsigned long flags;
 
-	SYS_BUG(!self);
+	BUG_ON(!self);
 	spin_lock_irqsave(&self->lock, flags);
 	if (self->irq_handler)
 		self->irq_handler(self->irq_priv);
@@ -877,7 +877,7 @@ static u32 cw1200_gpio_irq_handler(void *hwbus_priv)
 	struct hwbus_priv *self = (struct hwbus_priv *)hwbus_priv;
 	unsigned long flags;
 
-	SYS_BUG(!self);
+	BUG_ON(!self);
 	spin_lock_irqsave(&self->lock, flags);
 	if (self->irq_handler)
 		self->irq_handler(self->irq_priv);

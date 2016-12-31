@@ -76,7 +76,7 @@ static void sdio_irq_handler(struct sdio_func *func)
 	unsigned long flags;
 	hwbus_printk(XRADIO_DBG_TRC, "%s\n", __FUNCTION__);
 
-	SYS_BUG(!self);
+	BUG_ON(!self);
 	spin_lock_irqsave(&self->lock, flags);
 	if (self->irq_handler)
 		self->irq_handler(self->irq_priv);

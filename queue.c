@@ -11,8 +11,8 @@
 
 #include <net/mac80211.h>
 #include <linux/sched.h>
-#include "cw1200.h"
 #include "queue.h"
+#include "cw1200.h"
 #ifdef CONFIG_XRADIO_TESTMODE
 #include <linux/time.h>
 #endif /*CONFIG_XRADIO_TESTMODE*/
@@ -46,7 +46,7 @@ static inline void __cw1200_queue_lock(struct cw1200_queue *queue)
 static inline void __cw1200_queue_unlock(struct cw1200_queue *queue)
 {
 	struct cw1200_queue_stats *stats = queue->stats;
-	SYS_BUG(!queue->tx_locked_cnt);
+	BUG_ON(!queue->tx_locked_cnt);
 	if (--queue->tx_locked_cnt == 0) {
 		txrx_printk(XRADIO_DBG_MSG, "[TX] Queue %d is unlocked.\n",
 				queue->queue_id);
@@ -101,7 +101,7 @@ static void cw1200_queue_register_post_gc(struct list_head *gc_list,
 {
 	struct cw1200_queue_item *gc_item;
 	gc_item = xr_kmalloc(sizeof(struct cw1200_queue_item), false);
-	SYS_BUG(!gc_item);
+	BUG_ON(!gc_item);
 	memcpy(gc_item, item, sizeof(struct cw1200_queue_item));
 	list_add_tail(&gc_item->head, gc_list);
 }
@@ -259,7 +259,7 @@ int cw1200_queue_clear(struct cw1200_queue *queue, int if_id)
 	while (!list_empty(&queue->pending)) {
 		struct cw1200_queue_item *item = list_first_entry(
 			&queue->pending, struct cw1200_queue_item, head);
-		SYS_WARN(!item->skb);
+		WARN_ON(!item->skb);
 		if (XRWL_ALL_IFS == if_id || item->txpriv.if_id == if_id) {
 			cw1200_queue_register_post_gc(&gc_list, item);
 			item->skb = NULL;
@@ -377,10 +377,10 @@ int cw1200_queue_put(struct cw1200_queue *queue, struct sk_buff *skb,
 		return -EINVAL;
 
 	spin_lock_bh(&queue->lock);
-	if (!SYS_WARN(list_empty(&queue->free_pool))) {
+	if (!WARN_ON(list_empty(&queue->free_pool))) {
 		struct cw1200_queue_item *item = list_first_entry(
 			&queue->free_pool, struct cw1200_queue_item, head);
-		SYS_BUG(item->skb);
+		BUG_ON(item->skb);
 
 		list_move_tail(&item->head, &queue->queue);
 		item->skb = skb;
@@ -466,7 +466,7 @@ int cw1200_queue_get(struct cw1200_queue *queue,
 		}
 	}
 
-	if (!SYS_WARN(ret)) {
+	if (!WARN_ON(ret)) {
 		*tx = (struct wsm_tx *)item->skb->data;
 		*tx_info = IEEE80211_SKB_CB(item->skb);
 		*txpriv = &item->txpriv;
@@ -545,14 +545,14 @@ int cw1200_queue_requeue(struct cw1200_queue *queue, u32 packetID, bool check)
 	/*if_id = item->txpriv.if_id;*/
 
 	spin_lock_bh(&queue->lock);
-	SYS_BUG(queue_id != queue->queue_id);
+	BUG_ON(queue_id != queue->queue_id);
 	if (unlikely(queue_generation != queue->generation)) {
 		ret = -ENOENT;
 	} else if (unlikely(item_id >= (unsigned) queue->capacity)) {
-		SYS_WARN(1);
+		WARN_ON(1);
 		ret = -EINVAL;
 	} else if (unlikely(item->generation != item_generation)) {
-		SYS_WARN(1);
+		WARN_ON(1);
 		ret = -ENOENT;
 	} else {
 		--queue->num_pending;
@@ -633,15 +633,15 @@ int cw1200_queue_remove(struct cw1200_queue *queue, u32 packetID)
 	item = &queue->pool[item_id];
 
 	spin_lock_bh(&queue->lock);
-	SYS_BUG(queue_id != queue->queue_id);
+	BUG_ON(queue_id != queue->queue_id);
 	/*TODO:COMBO:Add check for interface ID also */
 	if (unlikely(queue_generation != queue->generation)) {
 		ret = -ENOENT;
 	} else if (unlikely(item_id >= (unsigned) queue->capacity)) {
-		SYS_WARN(1);
+		WARN_ON(1);
 		ret = -EINVAL;
 	} else if (unlikely(item->generation != item_generation)) {
-		SYS_WARN(1);
+		WARN_ON(1);
 		ret = -ENOENT;
 	} else {
 		gc_txpriv = item->txpriv;
@@ -730,15 +730,15 @@ int cw1200_queue_get_skb(struct cw1200_queue *queue, u32 packetID,
 	item = &queue->pool[item_id];
 
 	spin_lock_bh(&queue->lock);
-	SYS_BUG(queue_id != queue->queue_id);
+	BUG_ON(queue_id != queue->queue_id);
 	/* TODO:COMBO: Add check for interface ID here */
 	if (unlikely(queue_generation != queue->generation)) {
 		ret = -ENOENT;
 	} else if (unlikely(item_id >= (unsigned) queue->capacity)) {
-		SYS_WARN(1);
+		WARN_ON(1);
 		ret = -EINVAL;
 	} else if (unlikely(item->generation != item_generation)) {
-		SYS_WARN(1);
+		WARN_ON(1);
 		ret = -ENOENT;
 	} else {
 		*skb = item->skb;

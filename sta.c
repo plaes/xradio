@@ -155,7 +155,7 @@ int cw1200_start(struct ieee80211_hw *dev)
 	hw_priv->softled_state = 0;
 
 	ret = cw1200_setup_mac(hw_priv);
-	if (SYS_WARN(ret)) {
+	if (WARN_ON(ret)) {
 		sta_printk(XRADIO_DBG_ERROR,"%s, cw1200_setup_mac failed(%d)\n", 
 		           __func__, ret);
 		goto out;
@@ -299,7 +299,7 @@ int cw1200_add_interface(struct ieee80211_hw *dev,
 
 	/* Enable auto-calibration */
 	/* Exception in subsequent channel switch; disabled.
-	SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_ID_SET_AUTO_CALIBRATION_MODE,
+	WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_ID_SET_AUTO_CALIBRATION_MODE,
 		&auto_calibration_mode, sizeof(auto_calibration_mode)));
 	*/
 	sta_printk(XRADIO_DBG_MSG, "Interface ID:%d of type:%d added\n",
@@ -308,7 +308,7 @@ int cw1200_add_interface(struct ieee80211_hw *dev,
 
 	cw1200_vif_setup(priv);
 
-	ret = SYS_WARN(cw1200_setup_mac_pvif(priv));
+	ret = WARN_ON(cw1200_setup_mac_pvif(priv));
 
 	return ret;
 }
@@ -361,7 +361,7 @@ void cw1200_remove_interface(struct ieee80211_hw *dev,
 		priv->pspoll_mask = 0;
 		reset.link_id = 0;
 		wsm_reset(hw_priv, &reset, priv->if_id);
-		SYS_WARN(wsm_set_operational_mode(hw_priv, &mode, priv->if_id));
+		WARN_ON(wsm_set_operational_mode(hw_priv, &mode, priv->if_id));
 		cw1200_for_each_vif(hw_priv, tmp_priv, i) {
 #ifdef P2P_MULTIVIF
 			if ((i == (XRWL_MAX_VIFS - 1)) || !tmp_priv)
@@ -507,7 +507,7 @@ int cw1200_config(struct ieee80211_hw *dev, u32 changed)
 
 		sta_printk(XRADIO_DBG_NIY, "Config Tx power=%d, but real=%d\n",
 		           conf->power_level, hw_priv->output_power);
-		SYS_WARN(wsm_set_output_power(hw_priv, hw_priv->output_power * 10, if_id));
+		WARN_ON(wsm_set_output_power(hw_priv, hw_priv->output_power * 10, if_id));
 	}
 
 	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) &&
@@ -588,7 +588,7 @@ void cw1200_update_filtering(struct cw1200_vif *priv)
 			else
 				ret = wsm_set_beacon_filter_table(hw_priv, &bf_table_auto, priv->if_id);
 		} else
-			SYS_WARN(1);
+			WARN_ON(1);
 	}
 	if (!ret && !ap_mode) {
 		if (priv->disable_beacon_filter)
@@ -601,7 +601,7 @@ void cw1200_update_filtering(struct cw1200_vif *priv)
 				else
 					ret = wsm_beacon_filter_control(hw_priv, &bf_auto, priv->if_id);
 			} else
-				SYS_WARN(1);
+				WARN_ON(1);
 		}
 	}
 
@@ -644,13 +644,13 @@ void cw1200_set_beacon_wakeup_period_work(struct work_struct *work)
 	} else {
 		join_dtim_period_extend = priv->join_dtim_period;
 	}
-	SYS_WARN(wsm_set_beacon_wakeup_period(priv->hw_priv,
+	WARN_ON(wsm_set_beacon_wakeup_period(priv->hw_priv,
 	         priv->beacon_int * join_dtim_period_extend >
 	         MAX_BEACON_SKIP_TIME_MS ? 1 : join_dtim_period_extend, 
 	         0, priv->if_id));
 }
 #else
-	SYS_WARN(wsm_set_beacon_wakeup_period(priv->hw_priv,
+	WARN_ON(wsm_set_beacon_wakeup_period(priv->hw_priv,
 	         priv->beacon_int * priv->join_dtim_period >
 	         MAX_BEACON_SKIP_TIME_MS ? 1 :priv->join_dtim_period, 
 	         0, priv->if_id));
@@ -787,7 +787,7 @@ int cw1200_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 	bool old_uapsdFlags;
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
-	if (SYS_WARN(!priv))
+	if (WARN_ON(!priv))
 		return -EOPNOTSUPP;
 
 #ifdef P2P_MULTIVIF
@@ -907,7 +907,7 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 #ifdef P2P_MULTIVIF
-	SYS_WARN(priv->if_id == XRWL_GENERIC_IF_ID);
+	WARN_ON(priv->if_id == XRWL_GENERIC_IF_ID);
 #endif
 	mutex_lock(&hw_priv->conf_mutex);
 
@@ -924,7 +924,7 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			goto finally;
 		}
 
-		SYS_BUG(pairwise && !sta);
+		BUG_ON(pairwise && !sta);
 		if (sta)
 			peer_addr = sta->addr;
 
@@ -1017,7 +1017,7 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			ret = -EOPNOTSUPP;
 			goto finally;
 		}
-		ret = SYS_WARN(wsm_add_key(hw_priv, wsm_key, priv->if_id));
+		ret = WARN_ON(wsm_add_key(hw_priv, wsm_key, priv->if_id));
 		if (!ret)
 			key->hw_key_idx = idx;
 		else
@@ -1062,13 +1062,13 @@ void cw1200_wep_key_work(struct work_struct *work)
 	__le32 wep_default_key_id = __cpu_to_le32(priv->wep_default_key_id);
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
-	SYS_BUG(queueId >= 4);
+	BUG_ON(queueId >= 4);
 
 	sta_printk(XRADIO_DBG_MSG, "Setting default WEP key: %d\n", 
 	           priv->wep_default_key_id);
 
 	wsm_flush_tx(hw_priv);
-	SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_ID_DOT11_WEP_DEFAULT_KEY_ID,
+	WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_ID_DOT11_WEP_DEFAULT_KEY_ID,
 	                       &wep_default_key_id, sizeof(wep_default_key_id),
 	                       priv->if_id));
 
@@ -1095,7 +1095,7 @@ int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 			continue;
 		if_id = priv->if_id;
 #ifdef P2P_MULTIVIF
-		SYS_WARN(priv->if_id == XRWL_GENERIC_IF_ID);
+		WARN_ON(priv->if_id == XRWL_GENERIC_IF_ID);
 #endif
 
 		if (value != (u32) -1)
@@ -1104,7 +1104,7 @@ int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 			val32 = 0; /* disabled */
 
 		/* mutex_lock(&priv->conf_mutex); */
-		ret = SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_ID_DOT11_RTS_THRESHOLD,
+		ret = WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_ID_DOT11_RTS_THRESHOLD,
 			&val32, sizeof(val32), if_id));
 		/* mutex_unlock(&priv->conf_mutex); */
 	}
@@ -1226,7 +1226,7 @@ int cw1200_remain_on_channel(struct ieee80211_hw *hw,
 		if((priv->if_id == 0) || (priv->if_id == 1))
 			continue;
 		hw_priv->roc_if_id = priv->if_id;
-		ret = SYS_WARN(__cw1200_flush(hw_priv, false, if_id));
+		ret = WARN_ON(__cw1200_flush(hw_priv, false, if_id));
 		cw1200_enable_listening(priv, chan);
 
 		if (!ret) {
@@ -1406,7 +1406,7 @@ void cw1200_event_handler(struct work_struct *work)
 				skb_reserve(skb, 64);
 				xrwl_unmap_link(priv, link_id);
 				deauth = (struct ieee80211_mgmt *)skb_put(skb, sizeof(struct ieee80211_mgmt));
-	                        SYS_WARN(!deauth);
+	                        WARN_ON(!deauth);
 	                        entry = &priv->link_id_db[link_id - 1];
 	                        deauth->duration = 0;
 	                        memcpy(deauth->da, priv->vif->addr, ETH_ALEN);
@@ -1618,7 +1618,7 @@ int cw1200_setup_mac(struct cw1200_common *hw_priv)
 		for (if_id = 0; if_id < xrwl_get_nr_hw_ifaces(hw_priv);
 		     if_id++) {
 			/* Set low-power mode. */
-			ret |= SYS_WARN(wsm_configuration(hw_priv, &cfg,
+			ret |= WARN_ON(wsm_configuration(hw_priv, &cfg,
 				       if_id));
 		}
 #ifdef CONFIG_XRADIO_TESTMODE
@@ -1673,8 +1673,8 @@ void cw1200_offchannel_work(struct work_struct *work)
 	struct cw1200_queue *queue = &hw_priv->tx_queue[queueId];
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
-	SYS_BUG(queueId >= 4);
-	SYS_BUG(!hw_priv->channel);
+	BUG_ON(queueId >= 4);
+	BUG_ON(!hw_priv->channel);
 
 	if (unlikely(down_trylock(&hw_priv->scan.lock))) {
 		int ret;
@@ -1758,7 +1758,7 @@ void cw1200_join_work(struct work_struct *work)
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 
-	SYS_BUG(queueId >= 4);
+	BUG_ON(queueId >= 4);
 	if (cw1200_queue_get_skb(queue,	hw_priv->pending_frame_id,
 			&skb, &txpriv)) {
 		wsm_unlock_tx(hw_priv);
@@ -1768,8 +1768,8 @@ void cw1200_join_work(struct work_struct *work)
 	frame = (struct ieee80211_hdr *)&skb->data[txpriv->offset];
 	bssid = &frame->addr1[0]; /* AP SSID in a 802.11 frame */
 
-	SYS_BUG(!wsm);
-	SYS_BUG(!hw_priv->channel);
+	BUG_ON(!wsm);
+	BUG_ON(!hw_priv->channel);
 
 	if (unlikely(priv->join_status)) {
 		sta_printk(XRADIO_DBG_WARN, "%s, pre join_status=%d.\n",
@@ -1856,7 +1856,7 @@ void cw1200_join_work(struct work_struct *work)
 
 		if (ssidie) {
 			join.ssidLength = ssidie[1];
-			if (SYS_WARN(join.ssidLength > sizeof(join.ssid)))
+			if (WARN_ON(join.ssidLength > sizeof(join.ssid)))
 				join.ssidLength = sizeof(join.ssid);
 			memcpy(&join.ssid[0], &ssidie[2], join.ssidLength);
 			if(strstr(&join.ssid[0],"5.1.4"))
@@ -1888,9 +1888,9 @@ void cw1200_join_work(struct work_struct *work)
 
 		cw1200_disable_listening(priv);
 
-		//SYS_WARN(wsm_reset(hw_priv, &reset, priv->if_id));
-		SYS_WARN(wsm_set_operational_mode(hw_priv, &mode, priv->if_id));
-		SYS_WARN(wsm_set_block_ack_policy(hw_priv,
+		//WARN_ON(wsm_reset(hw_priv, &reset, priv->if_id));
+		WARN_ON(wsm_set_operational_mode(hw_priv, &mode, priv->if_id));
+		WARN_ON(wsm_set_block_ack_policy(hw_priv,
 			0, hw_priv->ba_tid_mask, priv->if_id));
 		spin_lock_bh(&hw_priv->ba_lock);
 		hw_priv->ba_ena = false;
@@ -1994,7 +1994,7 @@ void cw1200_unjoin_work(struct work_struct *work)
 		sta_printk(XRADIO_DBG_ERROR, 
 				"%s: Unexpected: join status: %d\n",
 				__func__, priv->join_status);
-		SYS_BUG(1);
+		BUG_ON(1);
 	}
 	if (priv->join_status) {
 		cancel_work_sync(&priv->update_filtering_work);
@@ -2004,18 +2004,18 @@ void cw1200_unjoin_work(struct work_struct *work)
 
 		/* Unjoin is a reset. */
 		wsm_flush_tx(hw_priv);
-		SYS_WARN(wsm_keep_alive_period(hw_priv, 0, priv->if_id));
-		SYS_WARN(wsm_reset(hw_priv, &reset, priv->if_id));
-		SYS_WARN(wsm_set_operational_mode(hw_priv, &mode, priv->if_id));
-		SYS_WARN(wsm_set_output_power(hw_priv,
+		WARN_ON(wsm_keep_alive_period(hw_priv, 0, priv->if_id));
+		WARN_ON(wsm_reset(hw_priv, &reset, priv->if_id));
+		WARN_ON(wsm_set_operational_mode(hw_priv, &mode, priv->if_id));
+		WARN_ON(wsm_set_output_power(hw_priv,
 			hw_priv->output_power * 10, priv->if_id));
 		priv->join_dtim_period = 0;
 		priv->cipherType = 0;
-		SYS_WARN(cw1200_setup_mac_pvif(priv));
+		WARN_ON(cw1200_setup_mac_pvif(priv));
 		cw1200_free_event_queue(hw_priv);
 		cancel_work_sync(&hw_priv->event_handler);
 		cancel_delayed_work_sync(&priv->connection_loss_work);
-		SYS_WARN(wsm_set_block_ack_policy(hw_priv,
+		WARN_ON(wsm_set_block_ack_policy(hw_priv,
 			0, hw_priv->ba_tid_mask, priv->if_id));
 		priv->disable_beacon_filter = false;
 		cw1200_update_filtering(priv);
@@ -2075,7 +2075,7 @@ int cw1200_enable_listening(struct cw1200_vif *priv,
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	if(priv->if_id != 2) {
-		SYS_WARN(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
+		WARN_ON(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
 		return 0;
 	}
 	if (priv->join_status == XRADIO_JOIN_STATUS_MONITOR)
@@ -2083,7 +2083,7 @@ int cw1200_enable_listening(struct cw1200_vif *priv,
 	if (priv->join_status == XRADIO_JOIN_STATUS_PASSIVE)
 		priv->join_status = XRADIO_JOIN_STATUS_MONITOR;
 
-	SYS_WARN(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
+	WARN_ON(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
 
 	return wsm_start(hw_priv, &start, XRWL_GENERIC_IF_ID);
 }
@@ -2097,12 +2097,12 @@ int cw1200_disable_listening(struct cw1200_vif *priv)
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	if(priv->if_id != 2) {
-		SYS_WARN(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
+		WARN_ON(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
         return 0;
 	}
 	priv->join_status = XRADIO_JOIN_STATUS_PASSIVE;
 
-	SYS_WARN(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
+	WARN_ON(priv->join_status > XRADIO_JOIN_STATUS_MONITOR);
 
 	if (priv->hw_priv->roc_if_id == -1)
 		return 0;
@@ -2170,7 +2170,7 @@ void cw1200_ba_work(struct work_struct *work)
 
 	wsm_lock_tx(hw_priv);
 
-	SYS_WARN(wsm_set_block_ack_policy(hw_priv,
+	WARN_ON(wsm_set_block_ack_policy(hw_priv,
 		tx_ba_tid_mask, hw_priv->ba_tid_mask, -1)); /*TODO:COMBO*/
 
 	wsm_unlock_tx(hw_priv);
@@ -2268,7 +2268,7 @@ int cw1200_vif_setup(struct cw1200_vif *priv)
 	priv->power_set_true = 0;
 	priv->user_power_set_true = 0;
 	priv->user_pm_mode = 0;
-	SYS_WARN(cw1200_debug_init_priv(hw_priv, priv));
+	WARN_ON(cw1200_debug_init_priv(hw_priv, priv));
 
 	/* Initialising the broadcast filter */
 	memset(priv->broadcast_filter.MacAddr, 0xFF, ETH_ALEN);
@@ -2316,11 +2316,11 @@ int cw1200_vif_setup(struct cw1200_vif *priv)
 				0, 0xc8, false);
 
 		ret = wsm_set_edca_params(hw_priv, &priv->edca, priv->if_id);
-		if (SYS_WARN(ret))
+		if (WARN_ON(ret))
 			goto out;
 
 		ret = cw1200_set_uapsd_param(priv, &priv->edca);
-		if (SYS_WARN(ret))
+		if (WARN_ON(ret))
 			goto out;
 
 		memset(priv->bssid, ~0, ETH_ALEN);
@@ -2396,7 +2396,7 @@ void cw1200_rem_chan_timeout(struct work_struct *work)
 	sta_printk(XRADIO_DBG_ERROR, "ROC TO IN %d\n", if_id);
 #endif
 	priv = __xrwl_hwpriv_to_vifpriv(hw_priv, if_id);
-	ret = SYS_WARN(__cw1200_flush(hw_priv, false, if_id));
+	ret = WARN_ON(__cw1200_flush(hw_priv, false, if_id));
 	if (!ret) {
 		cw1200_disable_listening(priv);
 	}
@@ -2476,7 +2476,7 @@ int cw1200_set_macaddrfilter(struct cw1200_common *hw_priv, struct cw1200_vif *p
 		mac_addr_filter->macaddrfilter[i].filter_mode = \
 						addr_info[i].filter_mode;
 	}
-	ret = SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_ID_MAC_ADDR_FILTER, \
+	ret = WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_ID_MAC_ADDR_FILTER, \
 					 mac_addr_filter, macaddrfiltersize, priv->if_id));
 
 	kfree(mac_addr_filter);
@@ -2569,7 +2569,7 @@ static int cw1200_set_ipv6addrfilter(struct ieee80211_hw *hw,
 					(u8 *)(ipv6_info[i].ipv6), 16);
 	}
 
-	ret = SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_IP_IPV6_ADDR_FILTER, \
+	ret = WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_IP_IPV6_ADDR_FILTER, \
 					 ipv6_filter, ipaddrfiltersize, \
 					 if_id));
 
@@ -2741,7 +2741,7 @@ int cw1200_set_arpreply(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	template_frame[1] = 0xFF; /* Rate to be fixed */
 	((u16 *)&template_frame[2])[0] = framehdrlen + framebdylen;
 	
-	ret = SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_ID_TEMPLATE_FRAME, \
+	ret = WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_ID_TEMPLATE_FRAME, \
 	                              template_frame, (framehdrlen+framebdylen+4), 
 	                              priv->if_id));
 	kfree(template_frame);
@@ -2924,7 +2924,7 @@ int cw1200_set_na(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	template_frame[1] = 0xFF; /* Rate to be fixed */
 	((u16 *)&template_frame[2])[0] = framehdrlen + framebdylen;
 
-	ret = SYS_WARN(wsm_write_mib(hw_priv, WSM_MIB_ID_TEMPLATE_FRAME, \
+	ret = WARN_ON(wsm_write_mib(hw_priv, WSM_MIB_ID_TEMPLATE_FRAME, \
 				template_frame, (framehdrlen+framebdylen+4), \
 				priv->if_id));
 
@@ -3022,7 +3022,7 @@ static int cw1200_set_txqueue_params(struct ieee80211_hw *hw,
 			WSM_ACK_POLICY_NORMAL,
 			txqueue_params->medium_time,
 			txqueue_params->expiry_time);
-	return SYS_WARN(wsm_set_tx_queue_params(hw_priv,
+	return WARN_ON(wsm_set_tx_queue_params(hw_priv,
 			&priv->tx_queue_params.params[queueId], queueId,
 			priv->if_id));
 }

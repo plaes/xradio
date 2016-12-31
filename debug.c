@@ -762,7 +762,7 @@ static ssize_t cw1200_fwdbg_write(struct file *file,
 		return -EFAULT;
 	fwdbg_ctrl = simple_strtoul(buf, &endptr, 16);
 	cw1200_dbg(XRADIO_DBG_ALWY,"fwdbg_ctrl = %d\n", fwdbg_ctrl);
-	SYS_WARN(wsm_set_fw_debug_control(hw_priv, fwdbg_ctrl, 0));
+	WARN_ON(wsm_set_fw_debug_control(hw_priv, fwdbg_ctrl, 0));
 
 	return count;
 }
@@ -2198,7 +2198,7 @@ static ssize_t cw1200_measure_type_write(struct file *file,
 	measure_type = simple_strtoul(buf, &endptr, 16);
 	
 	cw1200_dbg(XRADIO_DBG_ALWY,"measure_type = %08x\n", measure_type);
-	SYS_WARN(wsm_11k_measure_requset(hw_priv, (measure_type&0xff),
+	WARN_ON(wsm_11k_measure_requset(hw_priv, (measure_type&0xff),
                                            ((measure_type&0xff00)>>8),
                                            ((measure_type&0xffff0000)>>16)));
 	return count;
@@ -2509,33 +2509,33 @@ int cw1200_debug_init_priv(struct cw1200_common *hw_priv,
 	char name[VIF_DEBUGFS_NAME_S];
 	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
-	if (SYS_WARN(!hw_priv))
+	if (WARN_ON(!hw_priv))
 		return ret;
 
-	if (SYS_WARN(!hw_priv->debug))
+	if (WARN_ON(!hw_priv->debug))
 		return ret;
 
 	d = xr_kzalloc(sizeof(struct cw1200_debug_priv), false);
 	priv->debug = d;
-	if (SYS_WARN(!d))
+	if (WARN_ON(!d))
 		return ret;
 
 	memset(name, 0, VIF_DEBUGFS_NAME_S);
 	ret = snprintf(name, VIF_DEBUGFS_NAME_S, "vif_%d", priv->if_id);
-	if (SYS_WARN(ret < 0))
+	if (WARN_ON(ret < 0))
 		goto err;
 
 	d->debugfs_phy = debugfs_create_dir(name,
 					    hw_priv->debug->debugfs_phy);
-	if (SYS_WARN(!d->debugfs_phy))
+	if (WARN_ON(!d->debugfs_phy))
 		goto err;
 
-	if (SYS_WARN(!debugfs_create_file("hang", S_IWUSR, d->debugfs_phy,
+	if (WARN_ON(!debugfs_create_file("hang", S_IWUSR, d->debugfs_phy,
 			priv, &fops_hang)))
 		goto err;
 
 #if defined(AP_HT_COMPAT_FIX)
-	if (SYS_WARN(!debugfs_create_file("htcompat_disable", S_IWUSR, d->debugfs_phy,
+	if (WARN_ON(!debugfs_create_file("htcompat_disable", S_IWUSR, d->debugfs_phy,
 			priv, &fops_ht_compat_dis)))
 		goto err;
 #endif

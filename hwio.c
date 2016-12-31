@@ -35,7 +35,7 @@ static int __cw1200_read(struct cw1200_common *hw_priv, u16 addr,
 
 #if (CHECK_ADDR_LEN)
 	/* Check if buffer is aligned to 4 byte boundary */
-	if (SYS_WARN(((unsigned long)buf & 3) && (buf_len > 4))) {
+	if (WARN_ON(((unsigned long)buf & 3) && (buf_len > 4))) {
 		hwbus_printk(XRADIO_DBG_ERROR, "%s: buffer is not aligned.\n", __func__);
 		return -EINVAL;
 	}
@@ -44,7 +44,7 @@ static int __cw1200_read(struct cw1200_common *hw_priv, u16 addr,
 	/* Convert to SDIO Register Address */
 	addr_sdio = SPI_REG_ADDR_TO_SDIO(addr);
 	sdio_reg_addr_17bit = SDIO_ADDR17BIT(buf_id, 0, 0, addr_sdio);
-	SYS_BUG(!hw_priv->hwbus_ops);
+	BUG_ON(!hw_priv->hwbus_ops);
 	return hw_priv->hwbus_ops->hwbus_data_read(hw_priv->hwbus_priv, 
 	                                         sdio_reg_addr_17bit,
 	                                         buf, buf_len);
@@ -58,7 +58,7 @@ static int __cw1200_write(struct cw1200_common *hw_priv, u16 addr,
 
 #if (CHECK_ADDR_LEN)
 	/* Check if buffer is aligned to 4 byte boundary */
-	if (SYS_WARN(((unsigned long)buf & 3) && (buf_len > 4))) {
+	if (WARN_ON(((unsigned long)buf & 3) && (buf_len > 4))) {
 		hwbus_printk(XRADIO_DBG_ERROR, "%s: buffer is not aligned.\n", __func__);
 		return -EINVAL;
 	}
@@ -68,7 +68,7 @@ static int __cw1200_write(struct cw1200_common *hw_priv, u16 addr,
 	addr_sdio = SPI_REG_ADDR_TO_SDIO(addr);
 	sdio_reg_addr_17bit = SDIO_ADDR17BIT(buf_id, 0, 0, addr_sdio);
 
-	SYS_BUG(!hw_priv->hwbus_ops);
+	BUG_ON(!hw_priv->hwbus_ops);
 	return hw_priv->hwbus_ops->hwbus_data_write(hw_priv->hwbus_priv,
 	                                          sdio_reg_addr_17bit,
 	                                          buf, buf_len);
@@ -90,7 +90,7 @@ int cw1200_reg_read(struct cw1200_common *hw_priv, u16 addr,
                     void *buf, size_t buf_len)
 {
 	int ret;
-	SYS_BUG(!hw_priv->hwbus_ops);
+	BUG_ON(!hw_priv->hwbus_ops);
 	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
 	ret = __cw1200_read(hw_priv, addr, buf, buf_len, 0);
 	hw_priv->hwbus_ops->unlock(hw_priv->hwbus_priv);
@@ -101,7 +101,7 @@ int cw1200_reg_write(struct cw1200_common *hw_priv, u16 addr,
                      const void *buf, size_t buf_len)
 {
 	int ret;
-	SYS_BUG(!hw_priv->hwbus_ops);
+	BUG_ON(!hw_priv->hwbus_ops);
 	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
 	ret = __cw1200_write(hw_priv, addr, buf, buf_len, 0);
 	hw_priv->hwbus_ops->unlock(hw_priv->hwbus_priv);
@@ -111,7 +111,7 @@ int cw1200_reg_write(struct cw1200_common *hw_priv, u16 addr,
 int cw1200_data_read(struct cw1200_common *hw_priv, void *buf, size_t buf_len)
 {
 	int ret, retry = 1;
-	SYS_BUG(!hw_priv->hwbus_ops);
+	BUG_ON(!hw_priv->hwbus_ops);
 	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
 	{
 		int buf_id_rx = hw_priv->buf_id_rx;
@@ -137,7 +137,7 @@ int cw1200_data_write(struct cw1200_common *hw_priv, const void *buf,
                       size_t buf_len)
 {
 	int ret, retry = 1;
-	SYS_BUG(!hw_priv->hwbus_ops);
+	BUG_ON(!hw_priv->hwbus_ops);
 	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
 	{
 		int buf_id_tx = hw_priv->buf_id_tx;

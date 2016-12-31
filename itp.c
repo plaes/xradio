@@ -222,7 +222,7 @@ void cw1200_itp_release(struct cw1200_common *priv)
 	wait_event_interruptible(itp->close_wait,
 			!atomic_read(&itp->open_count));
 
-	SYS_WARN(atomic_read(&itp->open_count));
+	WARN_ON(atomic_read(&itp->open_count));
 
 	skb_queue_purge(&itp->log_queue);
 	cw1200_itp_tx_stop(priv);
@@ -397,10 +397,10 @@ static void cw1200_itp_tx_start(struct cw1200_common *priv)
 	cw1200_disable_listening(priv);
 	priv->channel = &priv->hw->
 		wiphy->bands[itp->band]->channels[itp->ch];
-	SYS_WARN(wsm_set_output_power(priv, itp->power));
+	WARN_ON(wsm_set_output_power(priv, itp->power));
 	if (itp->preamble == ITP_PREAMBLE_SHORT ||
 			itp->preamble == ITP_PREAMBLE_LONG)
-		SYS_WARN(wsm_set_association_mode(priv,
+		WARN_ON(wsm_set_association_mode(priv,
 					&assoc_mode));
 	wsm_set_bssid_filtering(priv, false);
 	cw1200_enable_listening(priv, priv->channel);

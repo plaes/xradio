@@ -360,7 +360,7 @@ void cw1200_version_show(void)
 /* return 0: failed*/
 static inline int cw1200_macaddr_val2char(char *c_mac, const u8* v_mac)
 {
-	SYS_BUG(!v_mac || !c_mac);
+	BUG_ON(!v_mac || !c_mac);
 	return sprintf(c_mac, "%02x:%02x:%02x:%02x:%02x:%02x\n",
 	               v_mac[0], v_mac[1], v_mac[2], 
 	               v_mac[3], v_mac[4], v_mac[5]);
@@ -371,7 +371,7 @@ static int cw1200_macaddr_char2val(u8* v_mac, const char *c_mac)
 {
 	int i = 0;
 	const char *tmp_char = c_mac;
-	SYS_BUG(!v_mac || !c_mac);
+	BUG_ON(!v_mac || !c_mac);
 
 	for (i = 0; i < ETH_ALEN; i++) {
 		if (*tmp_char != 0) {
@@ -403,7 +403,7 @@ extern void wifi_hwaddr_from_chipid(u8 *addr);
 static void cw1200_get_mac_addrs(u8 *macaddr)
 {
 	int ret = 0;
-	SYS_BUG(!macaddr);
+	BUG_ON(!macaddr);
 	/* Check mac addrs param, if exsist, use it first.*/
 #ifdef XRADIO_MACPARAM_HEX
 	memcpy(macaddr, cw1200_macaddr_param, ETH_ALEN);
@@ -940,7 +940,7 @@ int cw1200_core_reinit(struct cw1200_common *hw_priv)
 
 	/* Set sdio blocksize. */
 	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
-	SYS_WARN(hw_priv->hwbus_ops->set_block_size(hw_priv->hwbus_priv,
+	WARN_ON(hw_priv->hwbus_ops->set_block_size(hw_priv->hwbus_priv,
 		 SDIO_BLOCK_SIZE));
 	hw_priv->hwbus_ops->unlock(hw_priv->hwbus_priv);
 	if (wait_event_interruptible_timeout(hw_priv->wsm_startup_done,
@@ -964,7 +964,7 @@ int cw1200_core_reinit(struct cw1200_common *hw_priv)
 	ret = cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, HIF_CTRL_WUP_BIT);
 	if (cw1200_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, &ctrl_reg))
 		ret = cw1200_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, &ctrl_reg);
-	SYS_WARN(!(ctrl_reg & HIF_CTRL_RDY_BIT));
+	WARN_ON(!(ctrl_reg & HIF_CTRL_RDY_BIT));
 
 	/* Set device mode parameter. */
 	for (i = 0; i < xrwl_get_nr_hw_ifaces(hw_priv); i++) {
@@ -1082,7 +1082,7 @@ int cw1200_core_init(void)
 
 	/* Set sdio blocksize. */
 	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
-	SYS_WARN(hw_priv->hwbus_ops->set_block_size(hw_priv->hwbus_priv,
+	WARN_ON(hw_priv->hwbus_ops->set_block_size(hw_priv->hwbus_priv,
 			SDIO_BLOCK_SIZE));
 	hw_priv->hwbus_ops->unlock(hw_priv->hwbus_priv);
 
@@ -1098,17 +1098,17 @@ int cw1200_core_init(void)
 	cw1200_dbg(XRADIO_DBG_ALWY,"Firmware Startup Done.\n");
 
 	/* Keep device wake up. */
-	SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, HIF_CTRL_WUP_BIT));
+	WARN_ON(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, HIF_CTRL_WUP_BIT));
 	if (cw1200_reg_read_16(hw_priv,HIF_CONTROL_REG_ID, &ctrl_reg))
-		SYS_WARN(cw1200_reg_read_16(hw_priv,HIF_CONTROL_REG_ID, &ctrl_reg));
-	SYS_WARN(!(ctrl_reg & HIF_CTRL_RDY_BIT));
+		WARN_ON(cw1200_reg_read_16(hw_priv,HIF_CONTROL_REG_ID, &ctrl_reg));
+	WARN_ON(!(ctrl_reg & HIF_CTRL_RDY_BIT));
 
 	/* Set device mode parameter. */
 	for (if_id = 0; if_id < xrwl_get_nr_hw_ifaces(hw_priv); if_id++) {
 		/* Set low-power mode. */
-		SYS_WARN(wsm_set_operational_mode(hw_priv, &mode, if_id));
+		WARN_ON(wsm_set_operational_mode(hw_priv, &mode, if_id));
 		/* Enable multi-TX confirmation */
-		SYS_WARN(wsm_use_multi_tx_conf(hw_priv, true, if_id));
+		WARN_ON(wsm_use_multi_tx_conf(hw_priv, true, if_id));
 	}
 
 	/* Register wireless net device. */

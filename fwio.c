@@ -67,7 +67,7 @@ static int cw1200_parse_sdd(struct cw1200_common *priv, u32 *dpll)
 	int parsedLength = 0;
 
 	sta_printk(XRADIO_DBG_TRC,"%s\n", __func__);
-	SYS_BUG(priv->sdd != NULL);
+	BUG_ON(priv->sdd != NULL);
 
 	/* select and load sdd file depend on hardware version. */
 	switch (priv->hw_revision) {

@@ -249,7 +249,7 @@ static void tx_policy_build(const struct cw1200_common *hw_priv,
 	unsigned limit = hw_priv->short_frame_max_tx_count;
 	unsigned max_rates_cnt = count;
 	unsigned total = 0;
-	SYS_BUG(rates[0].idx < 0);
+	BUG_ON(rates[0].idx < 0);
 	memset(policy, 0, sizeof(*policy));
 	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
@@ -686,7 +686,7 @@ void tx_policy_upload_work(struct work_struct *work)
 		container_of(work, struct cw1200_common, tx_policy_upload_work);
 	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
-	SYS_WARN(tx_policy_upload(hw_priv));
+	WARN_ON(tx_policy_upload(hw_priv));
 	wsm_unlock_tx(hw_priv);
 }
 
@@ -1164,7 +1164,7 @@ cw1200_tx_h_skb_pad(struct cw1200_common *priv,
 	size_t padded_len = priv->hwbus_ops->align_size(priv->hwbus_priv, len);
 	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
-	if (SYS_WARN(skb_padto(skb, padded_len) != 0)) {
+	if (WARN_ON(skb_padto(skb, padded_len) != 0)) {
 		return -EINVAL;
 	}
 	return 0;
@@ -1201,7 +1201,7 @@ void cw1200_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 
 	if (!skb->data)
-		SYS_BUG(1);
+		BUG_ON(1);
 
 #ifdef HW_RESTART
 	if (hw_priv->hw_restart) {
@@ -1301,7 +1301,7 @@ void cw1200_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	t.sta_priv =
 		(struct cw1200_sta_priv *)&t.tx_info->control.sta->drv_priv;
 
-	if (SYS_WARN(t.queue >= 4)) {
+	if (WARN_ON(t.queue >= 4)) {
 		ret = __LINE__;
 		goto drop;
 	}
@@ -1381,7 +1381,7 @@ void cw1200_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	spin_lock_bh(&priv->ps_state_lock);
 	{
 		tid_update = cw1200_tx_h_pm_state(priv, &t);
-		SYS_BUG(cw1200_queue_put(&hw_priv->tx_queue[t.queue],
+		BUG_ON(cw1200_queue_put(&hw_priv->tx_queue[t.queue],
 				t.skb, &t.txpriv));
 #ifdef ROC_DEBUG
 		txrx_printk(XRADIO_DBG_ERROR, "QPUT %x, %pM, if_id - %d\n",
@@ -1532,7 +1532,7 @@ void cw1200_tx_confirm_cb(struct cw1200_common *hw_priv,
 		return;
 	}
 
-	if (SYS_WARN(queue_id >= 4)) {
+	if (WARN_ON(queue_id >= 4)) {
 		spin_unlock(&priv->vif_lock);
 		return;
 	}
@@ -1581,10 +1581,10 @@ void cw1200_tx_confirm_cb(struct cw1200_common *hw_priv,
 			cw1200_queue_get_generation(arg->packetID) + 1,
 			priv->sta_asleep_mask);
 #ifdef CONFIG_XRADIO_TESTMODE
-		SYS_WARN(cw1200_queue_requeue(hw_priv, queue,
+		WARN_ON(cw1200_queue_requeue(hw_priv, queue,
 				arg->packetID, true));
 #else
-		SYS_WARN(cw1200_queue_requeue(queue,
+		WARN_ON(cw1200_queue_requeue(queue,
 				arg->packetID, true));
 #endif
 		spin_lock_bh(&priv->ps_state_lock);
@@ -1597,7 +1597,7 @@ void cw1200_tx_confirm_cb(struct cw1200_common *hw_priv,
 		}
 		spin_unlock_bh(&priv->ps_state_lock);
 		spin_unlock(&priv->vif_lock);
-	} else if (!SYS_WARN(cw1200_queue_get_skb(
+	} else if (!WARN_ON(cw1200_queue_get_skb(
 			queue, arg->packetID, &skb, &txpriv))) {
 		struct ieee80211_tx_info *tx = IEEE80211_SKB_CB(skb);
 		struct ieee80211_hdr *frame = (struct ieee80211_hdr *)&skb->data[txpriv->offset];
@@ -1651,7 +1651,7 @@ void cw1200_tx_confirm_cb(struct cw1200_common *hw_priv,
 			if (arg->txedRate<24)
 				TxedRateIdx_Map[arg->txedRate]++;
 			else
-				SYS_WARN(1);
+				WARN_ON(1);
 			cw1200_debug_txed(priv);
 			if (arg->flags & WSM_TX_STATUS_AGGREGATION) {
 				/* Do not report aggregation to mac80211:
@@ -2037,7 +2037,7 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 		txrx_printk(XRADIO_DBG_NIY, "[RX] Going to MAP&RESET link ID\n");
 
 		if (work_pending(&priv->linkid_reset_work))
-			SYS_WARN(1);
+			WARN_ON(1);
 
 		memcpy(&priv->action_frame_sa[0],
 				ieee80211_get_SA(frame), ETH_ALEN);
@@ -2052,7 +2052,7 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 		/* Link ID already exists for the ACTION frame.
 		 * Reset and Remap */
 		if (work_pending(&priv->linkid_reset_work))
-			SYS_WARN(1);
+			WARN_ON(1);
 		memcpy(&priv->action_frame_sa[0],
 				ieee80211_get_SA(frame), ETH_ALEN);
 		priv->action_linkid = arg->link_id;
@@ -2102,7 +2102,7 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 	if (arg->rxedRate<24)
 		RxedRateIdx_Map[arg->rxedRate]++;
 	else
-		SYS_WARN(1);
+		WARN_ON(1);
        
 	if (arg->rxedRate >= 14) {
 		hdr->flag |= RX_FLAG_HT;
@@ -2148,7 +2148,7 @@ void cw1200_rx_cb(struct cw1200_vif *priv,
 			hdr->flag |= RX_FLAG_IV_STRIPPED;
 			break;
 		default:
-			SYS_WARN("Unknown encryption type");
+			WARN_ON("Unknown encryption type");
 			goto drop;
 		}
 
@@ -2378,7 +2378,7 @@ void cw1200_free_key(struct cw1200_common *hw_priv, int idx)
 {
 	txrx_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
-	SYS_BUG(!(hw_priv->key_map & BIT(idx)));
+	BUG_ON(!(hw_priv->key_map & BIT(idx)));
 	memset(&hw_priv->keys[idx], 0, sizeof(hw_priv->keys[idx]));
 	hw_priv->key_map &= ~BIT(idx);
 	txrx_printk(XRADIO_DBG_NIY,"%s, idx=%d\n", __func__, idx);
@@ -2419,7 +2419,7 @@ void cw1200_link_id_reset(struct work_struct *work)
 		/* In GO mode we can receive ACTION frames without a linkID */
 		temp_linkid = cw1200_alloc_link_id(priv,
 				&priv->action_frame_sa[0]);
-		SYS_WARN(!temp_linkid);
+		WARN_ON(!temp_linkid);
 		if (temp_linkid) {
 			/* Make sure we execute the WQ */
 			flush_workqueue(hw_priv->workqueue);
