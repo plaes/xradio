@@ -24,7 +24,7 @@
 
 /*added by yangfh, for host debuglevel*/
 u8 dbg_common  = XRADIO_DBG_ALWY|XRADIO_DBG_ERROR|XRADIO_DBG_WARN;
-u8 dbg_sbus    = XRADIO_DBG_ALWY|XRADIO_DBG_ERROR|XRADIO_DBG_WARN;
+u8 dbg_hwbus    = XRADIO_DBG_ALWY|XRADIO_DBG_ERROR|XRADIO_DBG_WARN;
 u8 dbg_bh      = XRADIO_DBG_ALWY|XRADIO_DBG_ERROR|XRADIO_DBG_WARN;
 u8 dbg_txrx    = XRADIO_DBG_ALWY|XRADIO_DBG_ERROR;
 u8 dbg_wsm     = XRADIO_DBG_ALWY|XRADIO_DBG_ERROR|XRADIO_DBG_WARN;
@@ -2601,7 +2601,7 @@ int cw1200_host_dbg_init(void)
 	if (!debugfs_create_x8("dbg_common", S_IRUSR | S_IWUSR, debugfs_host, &dbg_common))
 		ERR_LINE;
 
-	if (!debugfs_create_x8("dbg_sbus", S_IRUSR | S_IWUSR, debugfs_host, &dbg_sbus))
+	if (!debugfs_create_x8("dbg_hwbus", S_IRUSR | S_IWUSR, debugfs_host, &dbg_hwbus))
 		ERR_LINE;
 
 	if (!debugfs_create_x8("dbg_ap", S_IRUSR | S_IWUSR, debugfs_host, &dbg_ap))

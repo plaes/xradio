@@ -26,7 +26,7 @@
 
 #include "cw1200.h"
 #include "platform.h"
-#include "sbus.h"
+#include "hwbus.h"
 
 #define PLATFORM_RFKILL_PM     1  //if 1, Use system rf-kill for wifi power manage, default 0.
 #define PLATFORM_SYSCONFIG     1  //if 1, Get Hardware settting from sysconfig.fex, default 0.
@@ -859,9 +859,9 @@ int cw1200_sdio_detect(int enable)
 #ifdef CONFIG_XRADIO_USE_GPIO_IRQ
 static u32 gpio_irq_handle = 0;
 #ifdef PLAT_ALLWINNER_SUNXI
-static irqreturn_t cw1200_gpio_irq_handler(int irq, void *sbus_priv)
+static irqreturn_t cw1200_gpio_irq_handler(int irq, void *hwbus_priv)
 {
-	struct sbus_priv *self = (struct sbus_priv *)sbus_priv;
+	struct hwbus_priv *self = (struct hwbus_priv *)hwbus_priv;
 	unsigned long flags;
 
 	SYS_BUG(!self);
@@ -872,9 +872,9 @@ static irqreturn_t cw1200_gpio_irq_handler(int irq, void *sbus_priv)
 	return IRQ_HANDLED;
 }
 #else //PLAT_ALLWINNER_SUN6I
-static u32 cw1200_gpio_irq_handler(void *sbus_priv)
+static u32 cw1200_gpio_irq_handler(void *hwbus_priv)
 {
-	struct sbus_priv *self = (struct sbus_priv *)sbus_priv;
+	struct hwbus_priv *self = (struct hwbus_priv *)hwbus_priv;
 	unsigned long flags;
 
 	SYS_BUG(!self);
@@ -886,7 +886,7 @@ static u32 cw1200_gpio_irq_handler(void *sbus_priv)
 }
 #endif
 
-int cw1200_request_gpio_irq(struct device *dev, void *sbus_priv)
+int cw1200_request_gpio_irq(struct device *dev, void *hwbus_priv)
 {
 	int ret = -1;
 	if(!gpio_irq_handle) {
@@ -897,13 +897,13 @@ int cw1200_request_gpio_irq(struct device *dev, void *sbus_priv)
 		gpio_irq_handle = gpio_to_irq(wlan_irq_gpio);
 		ret = devm_request_irq(dev, gpio_irq_handle, 
 		                      (irq_handler_t)cw1200_gpio_irq_handler,
-		                       IRQF_TRIGGER_RISING, "cw1200_irq", sbus_priv);
+		                       IRQF_TRIGGER_RISING, "cw1200_irq", hwbus_priv);
 		if (IS_ERR_VALUE(ret)) {
 			gpio_irq_handle = 0;
 		}
 #else//PLAT_ALLWINNER_SUN6I
 		gpio_irq_handle = sw_gpio_irq_request(wlan_irq_gpio, TRIG_EDGE_POSITIVE, 
-			                                        (peint_handle)cw1200_gpio_irq_handler, sbus_priv);
+			                                        (peint_handle)cw1200_gpio_irq_handler, hwbus_priv);
 #endif // PLAT_ALLWINNER_SUNXI
 	} else {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: error, irq exist already!\n", __func__);
@@ -920,9 +920,9 @@ int cw1200_request_gpio_irq(struct device *dev, void *sbus_priv)
 	return ret;
 }
 
-void cw1200_free_gpio_irq(struct device *dev, void *sbus_priv)
+void cw1200_free_gpio_irq(struct device *dev, void *hwbus_priv)
 {
-	struct sbus_priv *self = (struct sbus_priv *)sbus_priv;
+	struct hwbus_priv *self = (struct hwbus_priv *)hwbus_priv;
 #ifdef PLAT_ALLWINNER_SUNXI
 	if(gpio_irq_handle) {
 		//for linux3.4

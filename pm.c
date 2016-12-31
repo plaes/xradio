@@ -15,7 +15,7 @@
 #include "pm.h"
 #include "sta.h"
 #include "bh.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "platform.h"
 
 #define XRADIO_BEACON_SKIPPING_MULTIPLIER 3
@@ -493,9 +493,9 @@ int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	}
 
 	/* Enable IRQ wake */
-	ret = hw_priv->sbus_ops->power_mgmt(hw_priv->sbus_priv, true);
+	ret = hw_priv->hwbus_ops->power_mgmt(hw_priv->hwbus_priv, true);
 	if (ret) {
-		pm_printk(XRADIO_DBG_WARN, "Don't suspend sbus pm failed\n");
+		pm_printk(XRADIO_DBG_WARN, "Don't suspend hwbus pm failed\n");
 		cw1200_wow_resume(hw);
 		return -EBUSY;
 	}
@@ -668,7 +668,7 @@ int cw1200_wow_resume(struct ieee80211_hw *hw)
 #endif
 
 	/* Disable IRQ wake */
-	hw_priv->sbus_ops->power_mgmt(hw_priv->sbus_priv, false);
+	hw_priv->hwbus_ops->power_mgmt(hw_priv->hwbus_priv, false);
 
 	up(&hw_priv->scan.lock);
 

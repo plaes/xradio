@@ -17,7 +17,7 @@
 #include "cw1200.h"
 #include "fwio.h"
 #include "hwio.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "bh.h"
 
 /* Macroses are local. */
@@ -552,8 +552,8 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 	}
 
 	/* Register Interrupt Handler */
-	ret = hw_priv->sbus_ops->irq_subscribe(hw_priv->sbus_priv, 
-	                                      (sbus_irq_handler)cw1200_irq_handler, 
+	ret = hw_priv->hwbus_ops->irq_subscribe(hw_priv->hwbus_priv, 
+	                                      (hwbus_irq_handler)cw1200_irq_handler, 
 	                                       hw_priv);
 	if (ret < 0) {
 		cw1200_dbg(XRADIO_DBG_ERROR, "%s: can't register IRQ handler.\n", __func__);
@@ -618,7 +618,7 @@ int cw1200_load_firmware(struct cw1200_common *hw_priv)
 	return 0;
 
 unsubscribe:
-	hw_priv->sbus_ops->irq_unsubscribe(hw_priv->sbus_priv);
+	hw_priv->hwbus_ops->irq_unsubscribe(hw_priv->hwbus_priv);
 out:
 	if (hw_priv->sdd) {
 #ifdef USE_VFS_FIRMWARE
@@ -633,7 +633,7 @@ out:
 
 int cw1200_dev_deinit(struct cw1200_common *hw_priv)
 {
-	hw_priv->sbus_ops->irq_unsubscribe(hw_priv->sbus_priv);
+	hw_priv->hwbus_ops->irq_unsubscribe(hw_priv->hwbus_priv);
 	if (hw_priv->sdd) {
 	#ifdef USE_VFS_FIRMWARE
 		xr_fileclose(hw_priv->sdd);

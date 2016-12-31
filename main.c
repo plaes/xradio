@@ -23,7 +23,7 @@
 #include "platform.h"
 #include "cw1200.h"
 #include "txrx.h"
-#include "sbus.h"
+#include "hwbus.h"
 #include "fwio.h"
 #include "hwio.h"
 #include "bh.h"
@@ -922,13 +922,13 @@ int cw1200_core_reinit(struct cw1200_common *hw_priv)
 	hw_priv->query_packetID = 0;
 	tx_policy_init(hw_priv);
 
-	/*reinit sdio sbus. */
-	sbus_sdio_deinit();
+	/*reinit sdio hwbus. */
+	hwbus_sdio_deinit();
 	msleep(100);
-	hw_priv->pdev = sbus_sdio_init((struct sbus_ops **)&hw_priv->sbus_ops,
-	                               &hw_priv->sbus_priv);
+	hw_priv->pdev = hwbus_sdio_init((struct hwbus_ops **)&hw_priv->hwbus_ops,
+	                               &hw_priv->hwbus_priv);
 	if (!hw_priv->pdev) {
-		cw1200_dbg(XRADIO_DBG_ERROR,"%s:sbus_sdio_init failed\n", __func__);
+		cw1200_dbg(XRADIO_DBG_ERROR,"%s:hwbus_sdio_init failed\n", __func__);
 		ret = -ETIMEDOUT;
 		goto exit;
 	}
@@ -954,10 +954,10 @@ int cw1200_core_reinit(struct cw1200_common *hw_priv)
 	}
 
 	/* Set sdio blocksize. */
-	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
-	SYS_WARN(hw_priv->sbus_ops->set_block_size(hw_priv->sbus_priv,
+	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
+	SYS_WARN(hw_priv->hwbus_ops->set_block_size(hw_priv->hwbus_priv,
 		 SDIO_BLOCK_SIZE));
-	hw_priv->sbus_ops->unlock(hw_priv->sbus_priv);
+	hw_priv->hwbus_ops->unlock(hw_priv->hwbus_priv);
 	if (wait_event_interruptible_timeout(hw_priv->wsm_startup_done,
 				hw_priv->wsm_caps.firmwareReady, 3*HZ) <= 0) {
 
@@ -1054,12 +1054,12 @@ int cw1200_core_init(void)
 	}
 	hw_priv = dev->priv;
 
-	//init sdio sbus
-	hw_priv->pdev = sbus_sdio_init((struct sbus_ops **)&hw_priv->sbus_ops, 
-	                               &hw_priv->sbus_priv);
+	//init sdio hwbus
+	hw_priv->pdev = hwbus_sdio_init((struct hwbus_ops **)&hw_priv->hwbus_ops, 
+	                               &hw_priv->hwbus_priv);
 	if (!hw_priv->pdev) {
 		err = -ETIMEDOUT;
-		cw1200_dbg(XRADIO_DBG_ERROR,"sbus_sdio_init failed\n");
+		cw1200_dbg(XRADIO_DBG_ERROR,"hwbus_sdio_init failed\n");
 		goto err1;
 	}
 
@@ -1096,10 +1096,10 @@ int cw1200_core_init(void)
 	}
 
 	/* Set sdio blocksize. */
-	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
-	SYS_WARN(hw_priv->sbus_ops->set_block_size(hw_priv->sbus_priv,
+	hw_priv->hwbus_ops->lock(hw_priv->hwbus_priv);
+	SYS_WARN(hw_priv->hwbus_ops->set_block_size(hw_priv->hwbus_priv,
 			SDIO_BLOCK_SIZE));
-	hw_priv->sbus_ops->unlock(hw_priv->sbus_priv);
+	hw_priv->hwbus_ops->unlock(hw_priv->hwbus_priv);
 
 	if (wait_event_interruptible_timeout(hw_priv->wsm_startup_done,
 				hw_priv->wsm_caps.firmwareReady, 3*HZ) <= 0) {
@@ -1142,7 +1142,7 @@ err4:
 err3:
 	cw1200_pm_deinit(&hw_priv->pm_state);
 err2:
-	sbus_sdio_deinit();
+	hwbus_sdio_deinit();
 err1:
 	cw1200_free_common(dev);
 	return err;
@@ -1161,7 +1161,7 @@ void cw1200_core_deinit(void)
 		cw1200_unregister_bh(g_hw_priv);
 		cw1200_pm_deinit(&g_hw_priv->pm_state);
 		cw1200_free_common(g_hw_priv->hw);
-		sbus_sdio_deinit();
+		hwbus_sdio_deinit();
 	}
 	return;
 }

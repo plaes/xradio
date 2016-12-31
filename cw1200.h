@@ -112,7 +112,7 @@ extern char *drv_buildtime;
 #define DRV_VERSION    drv_version
 #define DRV_BUILDTIME  drv_buildtime
 
-/* extern */ struct sbus_ops;
+/* extern */ struct hwbus_ops;
 /* extern */ struct task_struct;
 /* extern */ struct cw1200_debug_priv;
 /* extern */ struct cw1200_debug_common;
@@ -225,8 +225,8 @@ struct cw1200_common {
 
 	struct mutex			conf_mutex;
 
-	const struct sbus_ops		*sbus_ops;
-	struct sbus_priv		*sbus_priv;
+	const struct hwbus_ops		*hwbus_ops;
+	struct hwbus_priv		*hwbus_priv;
 	int 			driver_ready;
 
 	/* HW/FW type (HIF_...) */

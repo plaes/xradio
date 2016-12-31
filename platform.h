@@ -42,8 +42,8 @@ extern int wifi_pm_gpio_ctrl(char *name, int level);
 int  cw1200_plat_init(void);
 void cw1200_plat_deinit(void);
 int  cw1200_sdio_detect(int enable);
-int  cw1200_request_gpio_irq(struct device *dev, void *sbus_priv);
-void cw1200_free_gpio_irq(struct device *dev, void *sbus_priv);
+int  cw1200_request_gpio_irq(struct device *dev, void *hwbus_priv);
+void cw1200_free_gpio_irq(struct device *dev, void *hwbus_priv);
 int  cw1200_wlan_power(int on);
 
 #endif /* XRADIO_PLAT_H_INCLUDED */

@@ -25,7 +25,7 @@
 
 /*added by yangfh, for host debuglevel*/
 extern u8 dbg_common ;
-extern u8 dbg_sbus   ;
+extern u8 dbg_hwbus   ;
 extern u8 dbg_bh     ;
 extern u8 dbg_txrx   ;
 extern u8 dbg_wsm    ;
@@ -107,13 +107,13 @@ int cw1200_logfile(char *buffer, int buf_len, u8 b_time);
 			               "[XRADIO_ERR] " __VA_ARGS__);  \
 	} while (0)
 
-#define sbus_printk(level, ...)     \
+#define hwbus_printk(level, ...)     \
 	do {                              \
-		if ((level) & dbg_sbus & XRADIO_DBG_ERROR)       \
+		if ((level) & dbg_hwbus & XRADIO_DBG_ERROR)       \
 			printk(KERN_ERR "[SBUS_ERR] " __VA_ARGS__);  \
-		else if ((level) & dbg_sbus & XRADIO_DBG_WARN)   \
+		else if ((level) & dbg_hwbus & XRADIO_DBG_WARN)   \
 			printk(KERN_ERR "[SBUS_WRN] " __VA_ARGS__);  \
-		else if ((level) & dbg_sbus)                     \
+		else if ((level) & dbg_hwbus)                     \
 			printk(KERN_ERR "[SBUS] " __VA_ARGS__);      \
 		if ((level) & dbg_logfile)         \
 			LOG_FILE_VARS(((level)&XRADIO_DBG_ERROR),    \
@@ -281,7 +281,7 @@ int get_hwt_hif_tx(struct cw1200_common *hw_priv, u8 **data,
 #define SYS_WARN(c) WARN_ON(c)
 
 #define cw1200_dbg(level, ...)
-#define sbus_printk(level, ...)
+#define hwbus_printk(level, ...)
 #define txrx_printk(level, ...)
 #define bh_printk(level, ...)
 #define wsm_printk(level, ...)
