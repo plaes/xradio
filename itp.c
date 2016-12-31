@@ -174,11 +174,7 @@ static void cw1200_itp_tx_work(struct work_struct *work)
 	struct cw1200_common *priv = itp->priv;
 	atomic_set(&priv->bh_tx, 1);
 	
-#ifdef BH_USE_SEMAPHORE
-	up(&priv->bh_sem);
-#else
 	wake_up(&priv->bh_wq);
-#endif
 }
 
 static void cw1200_itp_tx_finish(struct work_struct *work)
@@ -411,11 +407,7 @@ static void cw1200_itp_tx_start(struct cw1200_common *priv)
 	atomic_set(&itp->stop_tx, 0);
 	atomic_set(&priv->bh_tx, 1);
 	ktime_get_ts(&itp->last_sent);
-#ifdef BH_USE_SEMAPHORE
-	up(&priv->bh_sem);
-#else
 	wake_up(&priv->bh_wq);
-#endif
 	spin_unlock_bh(&itp->tx_lock);
 }
 

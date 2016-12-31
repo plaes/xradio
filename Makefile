@@ -50,9 +50,6 @@ ccflags-y += -DXRADIO_USE_LONG_KEEP_ALIVE_PERIOD
 # Mac addr generate from chipid.
 ccflags-y += -DXRADIO_MACADDR_FROM_CHIPID
 
-# Use semaphore to sync bh txrx.
-#ccflags-y += -DBH_USE_SEMAPHORE
-
 ldflags-y += --strip-debug
 
 obj-$(CONFIG_XRADIO) += cw1200_wlan.o

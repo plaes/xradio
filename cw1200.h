@@ -276,12 +276,7 @@ struct cw1200_common {
 	atomic_t			bh_suspend;
 	struct task_struct		*bh_thread;
 	int				bh_error;
-#ifdef BH_USE_SEMAPHORE
-	struct semaphore		bh_sem;
-	atomic_t			    bh_wk;
-#else
 	wait_queue_head_t		bh_wq;
-#endif
 	wait_queue_head_t		bh_evt_wq;
 
 

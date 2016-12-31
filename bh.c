@@ -53,12 +53,7 @@ int cw1200_register_bh(struct cw1200_common *hw_priv)
 	atomic_set(&hw_priv->bh_suspend, XRADIO_BH_RESUMED);
 	hw_priv->buf_id_tx = 0;
 	hw_priv->buf_id_rx = 0;
-#ifdef BH_USE_SEMAPHORE
-	sema_init(&hw_priv->bh_sem, 0);
-	atomic_set(&hw_priv->bh_wk, 0);
-#else
 	init_waitqueue_head(&hw_priv->bh_wq);
-#endif
 	init_waitqueue_head(&hw_priv->bh_evt_wq);
 
 	hw_priv->bh_thread = kthread_create(&cw1200_bh, hw_priv, XRADIO_BH_THREAD);
@@ -98,16 +93,9 @@ void cw1200_irq_handler(struct cw1200_common *hw_priv)
 	DBG_BH_IRQ_ADD;
 	if (/* WARN_ON */(hw_priv->bh_error))
 		return;
-#ifdef BH_USE_SEMAPHORE
-	atomic_add(1, &hw_priv->bh_rx);
-	if (atomic_add_return(1, &hw_priv->bh_wk) == 1) {
-		up(&hw_priv->bh_sem);
-	}
-#else
 	if (atomic_add_return(1, &hw_priv->bh_rx) == 1) {
 		wake_up(&hw_priv->bh_wq);
 	}
-#endif
 
 }
 
@@ -116,16 +104,9 @@ void cw1200_bh_wakeup(struct cw1200_common *hw_priv)
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
 	if (WARN_ON(hw_priv->bh_error))
 		return;
-#ifdef BH_USE_SEMAPHORE
-	atomic_add(1, &hw_priv->bh_tx);
-	if (atomic_add_return(1, &hw_priv->bh_wk) == 1) {
-		up(&hw_priv->bh_sem);
-	}
-#else
 	if (atomic_add_return(1, &hw_priv->bh_tx) == 1) {
 		wake_up(&hw_priv->bh_wq);
 	}
-#endif
 }
 
 int cw1200_bh_suspend(struct cw1200_common *hw_priv)
@@ -155,11 +136,7 @@ int cw1200_bh_suspend(struct cw1200_common *hw_priv)
 #endif
 
 	atomic_set(&hw_priv->bh_suspend, XRADIO_BH_SUSPEND);
-#ifdef BH_USE_SEMAPHORE
-	up(&hw_priv->bh_sem);
-#else
 	wake_up(&hw_priv->bh_wq);
-#endif
 	return wait_event_timeout(hw_priv->bh_evt_wq, (hw_priv->bh_error || 
 	                          XRADIO_BH_SUSPENDED == atomic_read(&hw_priv->bh_suspend)),
 	                          1 * HZ)?  0 : -ETIMEDOUT;
@@ -180,11 +157,7 @@ int cw1200_bh_resume(struct cw1200_common *hw_priv)
 	}
 
 	atomic_set(&hw_priv->bh_suspend, XRADIO_BH_RESUME);
-#ifdef BH_USE_SEMAPHORE
-	up(&hw_priv->bh_sem);
-#else
 	wake_up(&hw_priv->bh_wq);
-#endif
 
 #ifdef MCAST_FWDING
 	ret = wait_event_timeout(hw_priv->bh_evt_wq, (hw_priv->bh_error ||
@@ -527,18 +500,6 @@ static int cw1200_bh(void *arg)
 		}
 
 		/* Wait for Events in HZ/8 */
-#ifdef BH_USE_SEMAPHORE
-		rx = atomic_xchg(&hw_priv->bh_rx, 0);
-		tx = atomic_xchg(&hw_priv->bh_tx, 0);
-		suspend = pending_tx ? 0 : atomic_read(&hw_priv->bh_suspend);
-		term    = kthread_should_stop();
-		if (!(rx || tx || term || suspend || hw_priv->bh_error)) {
-			atomic_set(&hw_priv->bh_wk, 0);
-			status = (long)(down_timeout(&hw_priv->bh_sem, status) != -ETIME);
-			//if (status && !atomic_read(&hw_priv->bh_rx) && !atomic_read(&hw_priv->bh_tx))
-			//	bh_printk(XRADIO_DBG_ALWY, "bh+\n");
-		}
-#else
 		status = wait_event_interruptible_timeout(hw_priv->bh_wq, ({
 		         rx = atomic_xchg(&hw_priv->bh_rx, 0);
 		         tx = atomic_xchg(&hw_priv->bh_tx, 0);
@@ -546,7 +507,6 @@ static int cw1200_bh(void *arg)
 		         suspend = pending_tx ? 0 : atomic_read(&hw_priv->bh_suspend);
 		         (rx || tx || term || suspend || hw_priv->bh_error);}),
 		         status);
-#endif
 
 		/* 0--bh is going to be shut down */
 		if(term) {
@@ -611,18 +571,8 @@ static int cw1200_bh(void *arg)
 			/* bh thread go to suspend. */
 			atomic_set(&hw_priv->bh_suspend, XRADIO_BH_SUSPENDED);
 			wake_up(&hw_priv->bh_evt_wq);
-#ifdef BH_USE_SEMAPHORE
-			do {
-				status = down_interruptible(&hw_priv->bh_sem);
-			} while (!status && XRADIO_BH_RESUME != atomic_read(&hw_priv->bh_suspend));
-			if (XRADIO_BH_RESUME != atomic_read(&hw_priv->bh_suspend))
-				status = -1;
-			else 
-				status = 0;
-#else
 			status = wait_event_interruptible(hw_priv->bh_wq,
 			         XRADIO_BH_RESUME == atomic_read(&hw_priv->bh_suspend));
-#endif
 			if (status < 0) {
 				bh_printk(XRADIO_DBG_ERROR,"ERR: Failed to wait for resume: %ld.\n", status);
 				hw_priv->bh_error = __LINE__;
@@ -944,14 +894,9 @@ tx:
 		/* The only reason of having this stupid code here is
 		 * that __put_task_struct is not exported by kernel. */
 		for (;;) {
-#ifdef BH_USE_SEMAPHORE
-			status = down_interruptible(&hw_priv->bh_sem);
-			term = kthread_should_stop();
-#else
 			int status = wait_event_interruptible(hw_priv->bh_wq, ({
 			             term = kthread_should_stop();
 			             (term);}));
-#endif
 			if (status || term)
 				break;
 		}

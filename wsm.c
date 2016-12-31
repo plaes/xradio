@@ -354,11 +354,7 @@ void wsm_query_work(struct work_struct *work)
 	if(ret[5] & 0x4) {
 		wsm_printk(XRADIO_DBG_ERROR,"Hardware need to reset 0x%x.\n", ret[5]);
 		hw_priv->bh_error = 1;
-#ifdef BH_USE_SEMAPHORE
-		up(&hw_priv->bh_sem);
-#else
 		wake_up(&hw_priv->bh_wq);
-#endif
 	}
 	hw_priv->query_packetID = 0;
 }
@@ -1894,11 +1890,7 @@ int wsm_cmd_send(struct cw1200_common *hw_priv,
 
 		/* Kill BH thread to report the error to the top layer. */
 		hw_priv->bh_error = 1;
-#ifdef BH_USE_SEMAPHORE
-		up(&hw_priv->bh_sem);
-#else
 		wake_up(&hw_priv->bh_wq);
-#endif
 		ret = -ETIMEDOUT;
 	} else {
 		spin_lock(&hw_priv->wsm_cmd.lock);
@@ -1971,11 +1963,7 @@ bool wsm_flush_tx(struct cw1200_common *hw_priv)
 						   "%s:hw_bufs_used=%d, num=%d, timeout=%ld\n",
 						   __func__, hw_priv->hw_bufs_used, num, timeout);
 				hw_priv->bh_error = 1;
-#ifdef BH_USE_SEMAPHORE
-				up(&hw_priv->bh_sem);
-#else
 				wake_up(&hw_priv->bh_wq);
-#endif
 				return false;
 			} else if (wait_event_timeout(hw_priv->bh_evt_wq, 
 			                       !hw_priv->hw_bufs_used, timeout) > 0) {
@@ -2022,11 +2010,7 @@ bool wsm_vif_flush_tx(struct cw1200_vif *priv)
 				           __func__, if_id, hw_priv->hw_bufs_used_vif[priv->if_id],
 				           num);
 				hw_priv->bh_error = 1; 
-	#ifdef BH_USE_SEMAPHORE
-				up(&hw_priv->bh_sem);
-	#else
 				wake_up(&hw_priv->bh_wq);
-	#endif
 				return false;
 			} else if (wait_event_timeout(hw_priv->bh_evt_wq, 
 			              !hw_priv->hw_bufs_used_vif[if_id], timeout) > 0) {
