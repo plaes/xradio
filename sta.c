@@ -1638,11 +1638,7 @@ int cw1200_setup_mac(struct cw1200_common *hw_priv)
 		cw1200_test_pwrlevel(hw_priv);
 #endif
 		/* wsm_configuration only once, so release it */
-#ifdef USE_VFS_FIRMWARE
-		xr_fileclose(hw_priv->sdd);
-#else
 		release_firmware(hw_priv->sdd);
-#endif
 		hw_priv->sdd = NULL;
 	}
 

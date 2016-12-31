@@ -18,15 +18,9 @@
 #define DPLL_INIT_VAL_XRADIO      (0x0EC4F121)
 
 #define XR819_HW_REV0       (8190)
-#ifdef USE_VFS_FIRMWARE
-#define XR819_BOOTLOADER    ("/system/etc/firmware/boot_xr819.bin")
-#define XR819_FIRMWARE      ("/system/etc/firmware/fw_xr819.bin")
-#define XR819_SDD_FILE      ("/system/etc/firmware/sdd_xr819.bin")
-#else
 #define XR819_BOOTLOADER    ("boot_xr819.bin")
 #define XR819_FIRMWARE      ("fw_xr819.bin")
 #define XR819_SDD_FILE      ("sdd_xr819.bin")
-#endif
 
 #define SDD_PTA_CFG_ELT_ID             0xEB
 #define SDD_REFERENCE_FREQUENCY_ELT_ID 0xC5
