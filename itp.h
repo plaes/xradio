@@ -36,7 +36,7 @@ precision with current HZ value !
 #define ITP_BUF_SIZE 255
 
 
-enum xradio_itp_data_modes {
+enum cw1200_itp_data_modes {
 	ITP_DATA_ZEROS,
 	ITP_DATA_ONES,
 	ITP_DATA_ZERONES,
@@ -44,12 +44,12 @@ enum xradio_itp_data_modes {
 	ITP_DATA_MAX_MODE,
 };
 
-enum xradio_itp_version_type {
+enum cw1200_itp_version_type {
 	ITP_CHIP_ID,
 	ITP_FW_VER,
 };
 
-enum xradio_itp_preamble_type {
+enum cw1200_itp_preamble_type {
 	ITP_PREAMBLE_LONG,
 	ITP_PREAMBLE_SHORT,
 	ITP_PREAMBLE_OFDM,
@@ -59,8 +59,8 @@ enum xradio_itp_preamble_type {
 };
 
 
-struct xradio_itp {
-	struct xradio_common	*priv;
+struct cw1200_itp {
+	struct cw1200_common	*priv;
 	atomic_t		open_count;
 	atomic_t		awaiting_confirm;
 	struct sk_buff_head	log_queue;
@@ -92,55 +92,55 @@ struct xradio_itp {
 	int			id;
 };
 
-int xradio_itp_init(struct xradio_common *priv);
-void xradio_itp_release(struct xradio_common *priv);
+int cw1200_itp_init(struct cw1200_common *priv);
+void cw1200_itp_release(struct cw1200_common *priv);
 
-bool xradio_is_itp(struct xradio_common *priv);
-bool xradio_itp_rxed(struct xradio_common *priv, struct sk_buff *skb);
-void xradio_itp_wake_up_tx(struct xradio_common *priv);
-int xradio_itp_get_tx(struct xradio_common *priv, u8 **data,
+bool cw1200_is_itp(struct cw1200_common *priv);
+bool cw1200_itp_rxed(struct cw1200_common *priv, struct sk_buff *skb);
+void cw1200_itp_wake_up_tx(struct cw1200_common *priv);
+int cw1200_itp_get_tx(struct cw1200_common *priv, u8 **data,
 		size_t *tx_len, int *burst);
-bool xradio_itp_tx_running(struct xradio_common *priv);
+bool cw1200_itp_tx_running(struct cw1200_common *priv);
 
 #else /* CONFIG_XRADIO_ITP */
 
 static inline int
-xradio_itp_init(struct xradio_common *priv)
+cw1200_itp_init(struct cw1200_common *priv)
 {
 	return 0;
 }
 
-static inline void xradio_itp_release(struct xradio_common *priv)
+static inline void cw1200_itp_release(struct cw1200_common *priv)
 {
 }
 
-static inline bool xradio_is_itp(struct xradio_common *priv)
+static inline bool cw1200_is_itp(struct cw1200_common *priv)
 {
 	return false;
 }
 
-static inline bool xradio_itp_rxed(struct xradio_common *priv,
+static inline bool cw1200_itp_rxed(struct cw1200_common *priv,
 		struct sk_buff *skb)
 {
 	return false;
 }
 
 
-static inline void xradio_itp_consume_txed(struct xradio_common *priv)
+static inline void cw1200_itp_consume_txed(struct cw1200_common *priv)
 {
 }
 
-static inline void xradio_itp_wake_up_tx(struct xradio_common *priv)
+static inline void cw1200_itp_wake_up_tx(struct cw1200_common *priv)
 {
 }
 
-static inline int xradio_itp_get_tx(struct xradio_common *priv, u8 **data,
+static inline int cw1200_itp_get_tx(struct cw1200_common *priv, u8 **data,
 		size_t *tx_len, int *burst)
 {
 	return 0;
 }
 
-static inline bool xradio_itp_tx_running(struct xradio_common *priv)
+static inline bool cw1200_itp_tx_running(struct cw1200_common *priv)
 {
 	return false;
 }

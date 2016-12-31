@@ -10,21 +10,21 @@
  */
 
 #include <linux/sched.h>
-#include "xradio.h"
+#include "cw1200.h"
 #include "scan.h"
 #include "sta.h"
 #include "pm.h"
 
-static void xradio_scan_restart_delayed(struct xradio_vif *priv);
+static void cw1200_scan_restart_delayed(struct cw1200_vif *priv);
 
 #ifdef CONFIG_XRADIO_TESTMODE
-static int xradio_advance_scan_start(struct xradio_common *hw_priv)
+static int cw1200_advance_scan_start(struct cw1200_common *hw_priv)
 {
 	int tmo = 0;
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	tmo += hw_priv->advanceScanElems.duration;
-	xradio_pm_stay_awake(&hw_priv->pm_state, tmo * HZ / 1000);
+	cw1200_pm_stay_awake(&hw_priv->pm_state, tmo * HZ / 1000);
 	/* Invoke Advance Scan Duration Timeout Handler */
 	queue_delayed_work(hw_priv->workqueue,
 	                  &hw_priv->advance_scan_timeout, tmo * HZ / 1000);
@@ -32,7 +32,7 @@ static int xradio_advance_scan_start(struct xradio_common *hw_priv)
 }
 #endif
 
-static void xradio_remove_wps_p2p_ie(struct wsm_template_frame *frame)
+static void cw1200_remove_wps_p2p_ie(struct wsm_template_frame *frame)
 {
 	u8 *ies;
 	u32 ies_len;
@@ -67,13 +67,13 @@ static void xradio_remove_wps_p2p_ie(struct wsm_template_frame *frame)
 }
 
 #ifdef CONFIG_XRADIO_TESTMODE
-static int xradio_disable_filtering(struct xradio_vif *priv)
+static int cw1200_disable_filtering(struct cw1200_vif *priv)
 {
 	int ret = 0;
 	bool bssid_filtering = 0;
 	struct wsm_rx_filter rx_filter;
 	struct wsm_beacon_filter_control bf_control;
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	/* RX Filter Disable */
@@ -96,7 +96,7 @@ static int xradio_disable_filtering(struct xradio_vif *priv)
 }
 #endif
 
-static int xradio_scan_start(struct xradio_vif *priv, struct wsm_scan *scan)
+static int cw1200_scan_start(struct cw1200_vif *priv, struct wsm_scan *scan)
 {
 	int ret, i;
 #ifdef FPGA_SETUP
@@ -104,7 +104,7 @@ static int xradio_scan_start(struct xradio_vif *priv, struct wsm_scan *scan)
 #else
 	int tmo = 5000;
 #endif
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	for (i = 0; i < scan->numOfChannels; ++i)
@@ -112,7 +112,7 @@ static int xradio_scan_start(struct xradio_vif *priv, struct wsm_scan *scan)
 
 	atomic_set(&hw_priv->scan.in_progress, 1);
 	atomic_set(&hw_priv->recent_scan, 1);
-	xradio_pm_stay_awake(&hw_priv->pm_state, tmo * HZ / 1000);
+	cw1200_pm_stay_awake(&hw_priv->pm_state, tmo * HZ / 1000);
 #ifdef P2P_MULTIVIF
 	ret = wsm_scan(hw_priv, scan, priv->if_id ? 1 : 0);
 #else
@@ -121,7 +121,7 @@ static int xradio_scan_start(struct xradio_vif *priv, struct wsm_scan *scan)
 	if (unlikely(ret)) {
 		scan_printk(XRADIO_DBG_WARN, "%s,wsm_scan failed!\n", __func__);
 		atomic_set(&hw_priv->scan.in_progress, 0);
-		xradio_scan_restart_delayed(priv);
+		cw1200_scan_restart_delayed(priv);
 	} else {
 		queue_delayed_work(hw_priv->workqueue, &hw_priv->scan.timeout,
 						tmo * HZ / 1000);
@@ -130,10 +130,10 @@ static int xradio_scan_start(struct xradio_vif *priv, struct wsm_scan *scan)
 }
 
 #ifdef ROAM_OFFLOAD
-static int xradio_sched_scan_start(struct xradio_vif *priv, struct wsm_scan *scan)
+static int cw1200_sched_scan_start(struct cw1200_vif *priv, struct wsm_scan *scan)
 {
 	int ret;
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	ret = wsm_scan(hw_priv, scan, priv->if_id);
@@ -145,12 +145,12 @@ static int xradio_sched_scan_start(struct xradio_vif *priv, struct wsm_scan *sca
 }
 #endif /*ROAM_OFFLOAD*/
 
-int xradio_hw_scan(struct ieee80211_hw *hw,
+int cw1200_hw_scan(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif,
 		   struct cfg80211_scan_request *req)
 {
-	struct xradio_common *hw_priv = hw->priv;
-	struct xradio_vif *priv = xrwl_get_vif_from_ieee80211(vif);
+	struct cw1200_common *hw_priv = hw->priv;
+	struct cw1200_vif *priv = xrwl_get_vif_from_ieee80211(vif);
 	struct wsm_template_frame frame = {
 		.frame_type = WSM_FRAME_TYPE_PROBE_REQUEST,
 	};
@@ -251,7 +251,7 @@ int xradio_hw_scan(struct ieee80211_hw *hw,
 	hw_priv->num_scanchannels = hw_priv->num_2g_channels + hw_priv->num_5g_channels;
 #endif /*ROAM_OFFLOAD*/
 
-	/* will be unlocked in xradio_scan_work() */
+	/* will be unlocked in cw1200_scan_work() */
 	down(&hw_priv->scan.lock);
 	mutex_lock(&hw_priv->conf_mutex);
 
@@ -273,23 +273,23 @@ int xradio_hw_scan(struct ieee80211_hw *hw,
 			wsm_set_pm(hw_priv, &pm, priv->if_id);
 		}
 		/* Disable Rx Beacon and Bssid filter */
-		ret = xradio_disable_filtering(priv);
+		ret = cw1200_disable_filtering(priv);
 		if (ret)
 			scan_printk(XRADIO_DBG_ERROR, "%s: Disable BSSID or Beacon filtering "
 			            "failed: %d.\n", __func__, ret);
 		wsm_unlock_tx(hw_priv);
 		mutex_unlock(&hw_priv->conf_mutex);
 		/* Transmit Probe Request with Broadcast SSID */
-		xradio_tx(hw, frame.skb);
+		cw1200_tx(hw, frame.skb);
 		/* Start Advance Scan Timer */
-		xradio_advance_scan_start(hw_priv);
+		cw1200_advance_scan_start(hw_priv);
 	} else {
 #endif /* CONFIG_XRADIO_TESTMODE */
 
 		if (frame.skb) {
 			int ret = 0;
 			if (priv->if_id == 0)
-				xradio_remove_wps_p2p_ie(&frame);
+				cw1200_remove_wps_p2p_ie(&frame);
 #ifdef P2P_MULTIVIF
 			ret = wsm_set_template_frame(hw_priv, &frame, priv->if_id ? 1 : 0);
 #else
@@ -341,13 +341,13 @@ int xradio_hw_scan(struct ieee80211_hw *hw,
 }
 
 #ifdef ROAM_OFFLOAD
-int xradio_hw_sched_scan_start(struct ieee80211_hw *hw,
+int cw1200_hw_sched_scan_start(struct ieee80211_hw *hw,
 		   struct ieee80211_vif *vif,
 		   struct cfg80211_sched_scan_request *req,
 		   struct ieee80211_sched_scan_ies *ies)
 {
-	struct xradio_common *hw_priv = hw->priv;
-	struct xradio_vif *priv = xrwl_get_vif_from_ieee80211(vif);
+	struct cw1200_common *hw_priv = hw->priv;
+	struct cw1200_vif *priv = xrwl_get_vif_from_ieee80211(vif);
 	struct wsm_template_frame frame = {
 		.frame_type = WSM_FRAME_TYPE_PROBE_REQUEST,
 	};
@@ -386,13 +386,13 @@ int xradio_hw_sched_scan_start(struct ieee80211_hw *hw,
 		return -ENOMEM;
 	}
 
-	/* will be unlocked in xradio_scan_work() */
+	/* will be unlocked in cw1200_scan_work() */
 	down(&hw_priv->scan.lock);
 	mutex_lock(&hw_priv->conf_mutex);
 	if (frame.skb) {
 		int ret;
 		if (priv->if_id == 0)
-			xradio_remove_wps_p2p_ie(&frame);
+			cw1200_remove_wps_p2p_ie(&frame);
 		ret = wsm_set_template_frame(hw_priv, &frame, priv->if_id);
 		if (0 == ret) {
 			/* Host want to be the probe responder. */
@@ -439,12 +439,12 @@ int xradio_hw_sched_scan_start(struct ieee80211_hw *hw,
 }
 #endif /*ROAM_OFFLOAD*/
 
-void xradio_scan_work(struct work_struct *work)
+void cw1200_scan_work(struct work_struct *work)
 {
-	struct xradio_common *hw_priv = container_of(work,
-						struct xradio_common,
+	struct cw1200_common *hw_priv = container_of(work,
+						struct cw1200_common,
 						scan.work);
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 	struct ieee80211_channel **it;
 	struct wsm_scan scan = {
 		.scanType = WSM_SCAN_TYPE_FOREGROUND,
@@ -478,7 +478,7 @@ void xradio_scan_work(struct work_struct *work)
 
 	/* No need to set WSM_SCAN_FLAG_FORCE_BACKGROUND in BSS_LOSS work. 
 	 * yangfh 2015-11-11 18:45:02 */
-	//xradio_for_each_vif(hw_priv, vif, i) {
+	//cw1200_for_each_vif(hw_priv, vif, i) {
 	//	if (!vif)
 	//		continue;
 	//	if (vif->bss_loss_status > XRADIO_BSS_LOSS_NONE)
@@ -492,7 +492,7 @@ void xradio_scan_work(struct work_struct *work)
 		 * when STA is joined but not yet associated.
 		 * Force unjoin in this case. */
 		if (cancel_delayed_work_sync(&priv->join_timeout) > 0)
-			xradio_join_timeout(&priv->join_timeout.work);
+			cw1200_join_timeout(&priv->join_timeout.work);
 	}
 
 	mutex_lock(&hw_priv->conf_mutex);
@@ -512,7 +512,7 @@ void xradio_scan_work(struct work_struct *work)
 				wsm_set_pm(hw_priv, &pm, priv->if_id);
 			}
 			/* Disable Rx Beacon and Bssid filter */
-			ret = xradio_disable_filtering(priv);
+			ret = cw1200_disable_filtering(priv);
 			if (ret)
 				scan_printk(XRADIO_DBG_ERROR, "%s: Disable BSSID or Beacon"
 				            "filtering failed: %d.\n", __func__, ret);
@@ -524,7 +524,7 @@ void xradio_scan_work(struct work_struct *work)
 			    !(priv->powersave_mode.pmMode & WSM_PSM_PS)) {
 				struct wsm_set_pm pm = priv->powersave_mode;
 				pm.pmMode = WSM_PSM_PS;
-				xradio_set_pm(priv, &pm);
+				cw1200_set_pm(priv, &pm);
 			}
 		} else {
 #endif
@@ -534,13 +534,13 @@ void xradio_scan_work(struct work_struct *work)
 			    !(priv->powersave_mode.pmMode & WSM_PSM_PS)) {
 				struct wsm_set_pm pm = priv->powersave_mode;
 				pm.pmMode = WSM_PSM_PS;
-				xradio_set_pm(priv, &pm);
+				cw1200_set_pm(priv, &pm);
 			} else
 #endif
 			if (priv->join_status == XRADIO_JOIN_STATUS_MONITOR) {
 				/* FW bug: driver has to restart p2p-dev mode
 				 * after scan */
-				xradio_disable_listening(priv);
+				cw1200_disable_listening(priv);
 			}
 #ifdef CONFIG_XRADIO_TESTMODE
 		}
@@ -563,7 +563,7 @@ void xradio_scan_work(struct work_struct *work)
 			 * and Revert Back Power Save */
 			if (priv->powersave_mode.pmMode & WSM_PSM_PS)
 				wsm_set_pm(hw_priv, &priv->powersave_mode, priv->if_id);
-			xradio_update_filtering(priv);
+			cw1200_update_filtering(priv);
 		} else if (!hw_priv->enable_advance_scan) {
 #endif
 			if (hw_priv->scan.output_power != hw_priv->output_power) {
@@ -584,7 +584,7 @@ void xradio_scan_work(struct work_struct *work)
 #if 0
 		if (priv->join_status == XRADIO_JOIN_STATUS_STA &&
 		    !(priv->powersave_mode.pmMode & WSM_PSM_PS))
-			xradio_set_pm(priv, &priv->powersave_mode);
+			cw1200_set_pm(priv, &priv->powersave_mode);
 #endif
 
 		if (hw_priv->scan.status < 0)
@@ -595,7 +595,7 @@ void xradio_scan_work(struct work_struct *work)
 			scan_printk(XRADIO_DBG_NIY, "Scan canceled.\n");
 
 		hw_priv->scan.req = NULL;
-		xradio_scan_restart_delayed(priv);
+		cw1200_scan_restart_delayed(priv);
 #ifdef CONFIG_XRADIO_TESTMODE
 		hw_priv->enable_advance_scan = false;
 #endif /* CONFIG_XRADIO_TESTMODE */
@@ -709,12 +709,12 @@ void xradio_scan_work(struct work_struct *work)
 			(priv->join_status == XRADIO_JOIN_STATUS_STA) &&
 			(hw_priv->channel->hw_value == advance_scan_req_channel)) {
 				/* Start Advance Scan Timer */
-				hw_priv->scan.status = xradio_advance_scan_start(hw_priv);
+				hw_priv->scan.status = cw1200_advance_scan_start(hw_priv);
 				wsm_unlock_tx(hw_priv);
 		} else
 #endif
 			down(&hw_priv->scan.status_lock);
-			hw_priv->scan.status = xradio_scan_start(priv, &scan);
+			hw_priv->scan.status = cw1200_scan_start(priv, &scan);
 
 		kfree(scan.ch);
 		if (WARN_ON(hw_priv->scan.status)) {
@@ -737,14 +737,14 @@ fail:
 }
 
 #ifdef ROAM_OFFLOAD
-void xradio_sched_scan_work(struct work_struct *work)
+void cw1200_sched_scan_work(struct work_struct *work)
 {
-	struct xradio_common *hw_priv = container_of(work, struct xradio_common,
+	struct cw1200_common *hw_priv = container_of(work, struct cw1200_common,
 		scan.swork);
 	struct wsm_scan scan;
 	struct wsm_ssid scan_ssid;
 	int i;
-	struct xradio_vif *priv = NULL;
+	struct cw1200_vif *priv = NULL;
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	priv = xrwl_hwpriv_to_vifpriv(hw_priv, hw_priv->scan.if_id);
@@ -758,7 +758,7 @@ void xradio_sched_scan_work(struct work_struct *work)
 	 * when STA is joined but not yet associated.
 	 * Force unjoin in this case. */
 	if (cancel_delayed_work_sync(&priv->join_timeout) > 0) {
-		xradio_join_timeout(&priv->join_timeout.work);
+		cw1200_join_timeout(&priv->join_timeout.work);
 	}
 	mutex_lock(&hw_priv->conf_mutex);
 	hw_priv->auto_scanning = 1;
@@ -803,7 +803,7 @@ void xradio_sched_scan_work(struct work_struct *work)
 	}
 #endif
 
-	hw_priv->scan.status = xradio_sched_scan_start(priv, &scan);
+	hw_priv->scan.status = cw1200_sched_scan_start(priv, &scan);
 	kfree(scan.ch);
 	if (hw_priv->scan.status) {
 		scan_printk(XRADIO_DBG_ERROR, "scan failed, status=%d.\n",
@@ -819,9 +819,9 @@ fail:
 	return;
 }
 
-void xradio_hw_sched_scan_stop(struct xradio_common *hw_priv)
+void cw1200_hw_sched_scan_stop(struct cw1200_common *hw_priv)
 {
-	struct xradio_vif *priv = NULL;
+	struct cw1200_vif *priv = NULL;
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 	priv = xrwl_hwpriv_to_vifpriv(hw_priv,hw_priv->scan.if_id);
 	if (unlikely(!priv))
@@ -835,9 +835,9 @@ void xradio_hw_sched_scan_stop(struct xradio_common *hw_priv)
 #endif /*ROAM_OFFLOAD*/
 
 
-static void xradio_scan_restart_delayed(struct xradio_vif *priv)
+static void cw1200_scan_restart_delayed(struct cw1200_vif *priv)
 {
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	if (priv->delayed_link_loss) {
@@ -856,9 +856,9 @@ static void xradio_scan_restart_delayed(struct xradio_vif *priv)
 
 	/* FW bug: driver has to restart p2p-dev mode after scan. */
 	if (priv->join_status == XRADIO_JOIN_STATUS_MONITOR) {
-		/*xradio_enable_listening(priv);*/
+		/*cw1200_enable_listening(priv);*/
 		WARN_ON(1);
-		xradio_update_filtering(priv);
+		cw1200_update_filtering(priv);
 		scan_printk(XRADIO_DBG_WARN, "driver has to restart "
 		            "p2p-dev mode after scan");
 	}
@@ -869,9 +869,9 @@ static void xradio_scan_restart_delayed(struct xradio_vif *priv)
 	}
 }
 
-static void xradio_scan_complete(struct xradio_common *hw_priv, int if_id)
+static void cw1200_scan_complete(struct cw1200_common *hw_priv, int if_id)
 {
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 	atomic_xchg(&hw_priv->recent_scan, 0);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
@@ -880,7 +880,7 @@ static void xradio_scan_complete(struct xradio_common *hw_priv, int if_id)
 		priv = __xrwl_hwpriv_to_vifpriv(hw_priv, if_id);
 		if (priv) {
 			scan_printk(XRADIO_DBG_MSG, "Direct probe complete.\n");
-			xradio_scan_restart_delayed(priv);
+			cw1200_scan_restart_delayed(priv);
 		} else {
 			scan_printk(XRADIO_DBG_MSG, "Direct probe complete without interface!\n");
 		}
@@ -889,14 +889,14 @@ static void xradio_scan_complete(struct xradio_common *hw_priv, int if_id)
 		up(&hw_priv->scan.lock);
 		wsm_unlock_tx(hw_priv);
 	} else {
-		xradio_scan_work(&hw_priv->scan.work);
+		cw1200_scan_work(&hw_priv->scan.work);
 	}
 }
 
-void xradio_scan_complete_cb(struct xradio_common *hw_priv,
+void cw1200_scan_complete_cb(struct cw1200_common *hw_priv,
                              struct wsm_scan_complete *arg)
 {
-	struct xradio_vif *priv = xrwl_hwpriv_to_vifpriv(hw_priv,
+	struct cw1200_vif *priv = xrwl_hwpriv_to_vifpriv(hw_priv,
 					hw_priv->scan.if_id);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
@@ -935,10 +935,10 @@ void xradio_scan_complete_cb(struct xradio_common *hw_priv,
 	}
 }
 
-void xradio_scan_timeout(struct work_struct *work)
+void cw1200_scan_timeout(struct work_struct *work)
 {
-	struct xradio_common *hw_priv =
-		container_of(work, struct xradio_common, scan.timeout.work);
+	struct cw1200_common *hw_priv =
+		container_of(work, struct cw1200_common, scan.timeout.work);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
 	if (likely(atomic_xchg(&hw_priv->scan.in_progress, 0))) {
@@ -951,7 +951,7 @@ void xradio_scan_timeout(struct work_struct *work)
 			hw_priv->scan.curr   = hw_priv->scan.end;
 			WARN_ON(wsm_stop_scan(hw_priv, hw_priv->scan.if_id ? 1 : 0));
 		}
-		xradio_scan_complete(hw_priv, hw_priv->scan.if_id);
+		cw1200_scan_complete(hw_priv, hw_priv->scan.if_id);
 #ifdef ROAM_OFFLOAD
 	} else if (hw_priv->auto_scanning) {
 		hw_priv->auto_scanning = 0;
@@ -961,12 +961,12 @@ void xradio_scan_timeout(struct work_struct *work)
 }
 
 #ifdef CONFIG_XRADIO_TESTMODE
-void xradio_advance_scan_timeout(struct work_struct *work)
+void cw1200_advance_scan_timeout(struct work_struct *work)
 {
-	struct xradio_common *hw_priv =
-		container_of(work, struct xradio_common, advance_scan_timeout.work);
+	struct cw1200_common *hw_priv =
+		container_of(work, struct cw1200_common, advance_scan_timeout.work);
 
-	struct xradio_vif *priv = xrwl_hwpriv_to_vifpriv(hw_priv,
+	struct cw1200_vif *priv = xrwl_hwpriv_to_vifpriv(hw_priv,
 					hw_priv->scan.if_id);
 	scan_printk(XRADIO_DBG_TRC,"%s\n", __func__);
 
@@ -979,7 +979,7 @@ void xradio_advance_scan_timeout(struct work_struct *work)
 	    XRADIO_SCAN_MEASUREMENT_PASSIVE) {
 		/* Passive Scan on Serving Channel
 		 * Timer Expire */
-		xradio_scan_complete(hw_priv, hw_priv->scan.if_id);
+		cw1200_scan_complete(hw_priv, hw_priv->scan.if_id);
 	} else {
 		/* Active Scan on Serving Channel
 		 * Timer Expire */
@@ -991,7 +991,7 @@ void xradio_advance_scan_timeout(struct work_struct *work)
 		if ((priv->powersave_mode.pmMode & WSM_PSM_PS))
 			wsm_set_pm(hw_priv, &priv->powersave_mode, priv->if_id);
 		hw_priv->scan.req = NULL;
-		xradio_update_filtering(priv);
+		cw1200_update_filtering(priv);
 		hw_priv->enable_advance_scan = false;
 		wsm_unlock_tx(hw_priv);
 		mutex_unlock(&hw_priv->conf_mutex);
@@ -1001,14 +1001,14 @@ void xradio_advance_scan_timeout(struct work_struct *work)
 }
 #endif
 
-void xradio_probe_work(struct work_struct *work)
+void cw1200_probe_work(struct work_struct *work)
 {
-	struct xradio_common *hw_priv =
-		container_of(work, struct xradio_common, scan.probe_work.work);
-	struct xradio_vif *priv;
-	u8 queueId = xradio_queue_get_queue_id(hw_priv->pending_frame_id);
-	struct xradio_queue *queue = &hw_priv->tx_queue[queueId];
-	const struct xradio_txpriv *txpriv;
+	struct cw1200_common *hw_priv =
+		container_of(work, struct cw1200_common, scan.probe_work.work);
+	struct cw1200_vif *priv;
+	u8 queueId = cw1200_queue_get_queue_id(hw_priv->pending_frame_id);
+	struct cw1200_queue *queue = &hw_priv->tx_queue[queueId];
+	const struct cw1200_txpriv *txpriv;
 	struct wsm_tx *wsm;
 	struct wsm_template_frame frame = {
 		.frame_type = WSM_FRAME_TYPE_PROBE_REQUEST,
@@ -1046,11 +1046,11 @@ void xradio_probe_work(struct work_struct *work)
 		return;
 	}
 
-	if (xradio_queue_get_skb(queue,	hw_priv->pending_frame_id, &frame.skb, &txpriv)) {
+	if (cw1200_queue_get_skb(queue,	hw_priv->pending_frame_id, &frame.skb, &txpriv)) {
 		up(&hw_priv->scan.lock);
 		mutex_unlock(&hw_priv->conf_mutex);
 		wsm_unlock_tx(hw_priv);
-		scan_printk(XRADIO_DBG_ERROR, "%s:xradio_queue_get_skb error!\n", __func__);
+		scan_printk(XRADIO_DBG_ERROR, "%s:cw1200_queue_get_skb error!\n", __func__);
 		return;
 	}
 	priv = __xrwl_hwpriv_to_vifpriv(hw_priv, txpriv->if_id);
@@ -1075,7 +1075,7 @@ void xradio_probe_work(struct work_struct *work)
 
 	/* No need to set WSM_SCAN_FLAG_FORCE_BACKGROUND in BSS_LOSS work. 
 	 * yangfh 2015-11-11 18:45:02 */
-	//xradio_for_each_vif(hw_priv, vif, i) {
+	//cw1200_for_each_vif(hw_priv, vif, i) {
 	//	if (!vif)
 	//		continue;
 	//	if (vif->bss_loss_status > XRADIO_BSS_LOSS_NONE)
@@ -1092,7 +1092,7 @@ void xradio_probe_work(struct work_struct *work)
 		if (ssidie && ssidie[1] && ssidie[1] <= sizeof(ssids[0].ssid)) {
 			u8 *nextie = &ssidie[2 + ssidie[1]];
 			/* Remove SSID from the IE list. It has to be provided
-			 * as a separate argument in xradio_scan_start call */
+			 * as a separate argument in cw1200_scan_start call */
 
 			/* Store SSID localy */
 			ssids[0].length = ssidie[1];
@@ -1107,12 +1107,12 @@ void xradio_probe_work(struct work_struct *work)
 	}
 
 	if (priv->if_id == 0)
-		xradio_remove_wps_p2p_ie(&frame);
+		cw1200_remove_wps_p2p_ie(&frame);
 
 	/* FW bug: driver has to restart p2p-dev mode after scan */
 	if (priv->join_status == XRADIO_JOIN_STATUS_MONITOR) {
 		WARN_ON(1);
-		/*xradio_disable_listening(priv);*/
+		/*cw1200_disable_listening(priv);*/
 	}
 	ret = WARN_ON(wsm_set_template_frame(hw_priv, &frame,
 				priv->if_id));
@@ -1121,7 +1121,7 @@ void xradio_probe_work(struct work_struct *work)
 	hw_priv->scan.if_id = priv->if_id;
 	if (!ret) {
 		wsm_flush_tx(hw_priv);
-		ret = WARN_ON(xradio_scan_start(priv, &scan));
+		ret = WARN_ON(cw1200_scan_start(priv, &scan));
 	}
 	mutex_unlock(&hw_priv->conf_mutex);
 
@@ -1129,9 +1129,9 @@ void xradio_probe_work(struct work_struct *work)
 	if (!ret)
 		IEEE80211_SKB_CB(frame.skb)->flags |= IEEE80211_TX_STAT_ACK;
 #ifdef CONFIG_XRADIO_TESTMODE
-		SYS_BUG(xradio_queue_remove(hw_priv, queue, hw_priv->pending_frame_id));
+		SYS_BUG(cw1200_queue_remove(hw_priv, queue, hw_priv->pending_frame_id));
 #else
-		SYS_BUG(xradio_queue_remove(queue, hw_priv->pending_frame_id));
+		SYS_BUG(cw1200_queue_remove(queue, hw_priv->pending_frame_id));
 #endif
 
 	if (ret) {

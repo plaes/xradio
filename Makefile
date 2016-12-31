@@ -1,4 +1,4 @@
-xradio_wlan-y := \
+cw1200_wlan-y := \
 	common.o \
 	fwio.o \
 	txrx.o \
@@ -13,9 +13,9 @@ xradio_wlan-y := \
 	platform.o \
 	debug.o
 
-xradio_wlan-$(CONFIG_PM)		+= pm.o
-xradio_wlan-$(CONFIG_XRADIO_SDIO)	+= sdio.o
-xradio_wlan-$(CONFIG_XRADIO_ITP)	+= itp.o
+cw1200_wlan-$(CONFIG_PM)		+= pm.o
+cw1200_wlan-$(CONFIG_XRADIO_SDIO)	+= sdio.o
+cw1200_wlan-$(CONFIG_XRADIO_ITP)	+= itp.o
 
 ccflags-y += -DP2P_MULTIVIF
 ccflags-y += -DMCAST_FWDING
@@ -58,5 +58,5 @@ ccflags-y += -DXRADIO_MACADDR_FROM_CHIPID
 
 ldflags-y += --strip-debug
 
-obj-$(CONFIG_XRADIO) += xradio_wlan.o
+obj-$(CONFIG_XRADIO) += cw1200_wlan.o
 

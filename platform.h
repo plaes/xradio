@@ -39,11 +39,11 @@ extern int sw_mci_check_r1_ready(struct mmc_host* mmc, unsigned ms);
 /* the rf_pm api */
 extern int wifi_pm_gpio_ctrl(char *name, int level);
 /* platform interfaces */
-int  xradio_plat_init(void);
-void xradio_plat_deinit(void);
-int  xradio_sdio_detect(int enable);
-int  xradio_request_gpio_irq(struct device *dev, void *sbus_priv);
-void xradio_free_gpio_irq(struct device *dev, void *sbus_priv);
-int  xradio_wlan_power(int on);
+int  cw1200_plat_init(void);
+void cw1200_plat_deinit(void);
+int  cw1200_sdio_detect(int enable);
+int  cw1200_request_gpio_irq(struct device *dev, void *sbus_priv);
+void cw1200_free_gpio_irq(struct device *dev, void *sbus_priv);
+int  cw1200_wlan_power(int on);
 
 #endif /* XRADIO_PLAT_H_INCLUDED */

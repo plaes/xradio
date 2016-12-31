@@ -22,13 +22,13 @@
 
 #ifdef CONFIG_PM
 
-#define XRADIO_PM_DEVICE   "xradio_pm"
-#define XRADIO_WAKE_LOCK   "xradio_wlan"
+#define XRADIO_PM_DEVICE   "cw1200_pm"
+#define XRADIO_WAKE_LOCK   "cw1200_wlan"
 
-/* extern */   struct xradio_common; 
- /* private */ struct xradio_suspend_state;
+/* extern */   struct cw1200_common; 
+ /* private */ struct cw1200_suspend_state;
 
-struct xradio_pm_state {
+struct cw1200_pm_state {
 #ifdef CONFIG_WAKELOCK
 	struct wake_lock wakelock;
 #else
@@ -39,8 +39,8 @@ struct xradio_pm_state {
 	long expires_save;
 };
 
-struct xradio_pm_state_vif {
-	struct xradio_suspend_state *suspend_state;
+struct cw1200_pm_state_vif {
+	struct cw1200_suspend_state *suspend_state;
 };
 
 #ifdef CONFIG_XRADIO_SUSPEND_POWER_OFF
@@ -51,13 +51,13 @@ enum suspend_state {
 	XRADIO_POWEROFF_SUSP
 };
 #endif
-int xradio_pm_init(struct xradio_pm_state *pm, struct xradio_common *priv);
-void xradio_pm_deinit(struct xradio_pm_state *pm);
-void xradio_pm_stay_awake(struct xradio_pm_state *pm, unsigned long tmo);
-void xradio_pm_lock_awake(struct xradio_pm_state *pm);
-void xradio_pm_unlock_awake(struct xradio_pm_state *pm);
-int xradio_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
-int xradio_wow_resume(struct ieee80211_hw *hw);
+int cw1200_pm_init(struct cw1200_pm_state *pm, struct cw1200_common *priv);
+void cw1200_pm_deinit(struct cw1200_pm_state *pm);
+void cw1200_pm_stay_awake(struct cw1200_pm_state *pm, unsigned long tmo);
+void cw1200_pm_lock_awake(struct cw1200_pm_state *pm);
+void cw1200_pm_unlock_awake(struct cw1200_pm_state *pm);
+int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
+int cw1200_wow_resume(struct ieee80211_hw *hw);
 
 #endif /* CONFIG_PM */
 

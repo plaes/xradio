@@ -24,13 +24,13 @@
 #include <net/mac80211.h>
 
 #include "platform.h"
-#include "xradio.h"
+#include "cw1200.h"
 #include "sbus.h"
 
 /* sdio vendor id and device id*/
 #define SDIO_VENDOR_ID_XRADIO 0x0020
 #define SDIO_DEVICE_ID_XRADIO 0x2281
-static const struct sdio_device_id xradio_sdio_ids[] = {
+static const struct sdio_device_id cw1200_sdio_ids[] = {
 	{ SDIO_DEVICE(SDIO_VENDOR_ID_XRADIO, SDIO_DEVICE_ID_XRADIO) },
 	//{ SDIO_DEVICE(SDIO_ANY_ID, SDIO_ANY_ID) },
 	{ /* end: all zeroes */			},
@@ -105,7 +105,7 @@ static int sdio_irq_subscribe(struct sbus_priv *self,
 #ifndef CONFIG_XRADIO_USE_GPIO_IRQ
 	ret = sdio_claim_irq(self->func, sdio_irq_handler);
 #else
-	ret = xradio_request_gpio_irq(&(self->func->dev), self);
+	ret = cw1200_request_gpio_irq(&(self->func->dev), self);
 	if (!ret) {
 		/* Hack to access Fuction-0 */
 		u8 cccr;
@@ -116,7 +116,7 @@ static int sdio_irq_subscribe(struct sbus_priv *self,
 		cccr |= BIT(func_num);  /* ... for our function */
 		sdio_writeb(self->func, cccr, SDIO_CCCR_IENx, &ret);
 		if (ret) {
-			xradio_free_gpio_irq(&(self->func->dev), self);
+			cw1200_free_gpio_irq(&(self->func->dev), self);
 			if (MCI_CHECK_READY(self->func->card->host, 1000) != 0)
 				sbus_printk(XRADIO_DBG_ERROR, "%s:MCI_CHECK_READY timeout\n", __func__);
 		}
@@ -146,7 +146,7 @@ static int sdio_irq_unsubscribe(struct sbus_priv *self)
 	ret = sdio_release_irq(self->func);
 	sdio_release_host(self->func);
 #else
-	xradio_free_gpio_irq(&(self->func->dev), self);
+	cw1200_free_gpio_irq(&(self->func->dev), self);
 #endif  //CONFIG_XRADIO_USE_GPIO_IRQ
 
 	spin_lock_irqsave(&self->lock, flags);
@@ -290,8 +290,8 @@ static const struct dev_pm_ops sdio_pm_ops = {
 };
 
 static struct sdio_driver sdio_driver = {
-	.name     = "xradio_wlan",
-	.id_table = xradio_sdio_ids,
+	.name     = "cw1200_wlan",
+	.id_table = cw1200_sdio_ids,
 	.probe    = sdio_probe,
 	.remove   = sdio_remove,
 	.drv = {
@@ -320,16 +320,16 @@ struct device * sbus_sdio_init(struct sbus_ops  **sdio_ops,
 		}
 
 		//module power up.
-		xradio_wlan_power(1);
+		cw1200_wlan_power(1);
 		//detect sdio card.
-		xradio_sdio_detect(1);
+		cw1200_sdio_detect(1);
 		if (wait_event_interruptible_timeout(sdio_self.init_wq,
 			sdio_self.load_state == SDIO_LOAD, 2*HZ) <= 0) {
 			sdio_unregister_driver(&sdio_driver);
 			sdio_self.load_state = SDIO_UNLOAD;
 
-			xradio_wlan_power(0); //power down.
-			xradio_sdio_detect(0);
+			cw1200_wlan_power(0); //power down.
+			cw1200_sdio_detect(0);
 			sbus_printk(XRADIO_DBG_ERROR,"sdio probe timeout!\n");
 			return NULL;
 		}
@@ -352,8 +352,8 @@ void sbus_sdio_deinit()
 		memset(&sdio_self, 0, sizeof(sdio_self));
 		sdio_self.load_state = SDIO_UNLOAD;
 
-		xradio_wlan_power(0);  //power down.
-		xradio_sdio_detect(0);
+		cw1200_wlan_power(0);  //power down.
+		cw1200_sdio_detect(0);
 		mdelay(10);
 	}
 }

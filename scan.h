@@ -24,7 +24,7 @@
 
 #define SCAN_MAX_DELAY      (3*HZ)   //3s, add by yangfh for connect
 
-struct xradio_scan {
+struct cw1200_scan {
 	struct semaphore lock;
 	struct work_struct work;
 #ifdef ROAM_OFFLOAD
@@ -49,27 +49,27 @@ struct xradio_scan {
 	u8 if_id;
 };
 
-int xradio_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+int cw1200_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
                    struct cfg80211_scan_request *req);
 #ifdef ROAM_OFFLOAD
-int xradio_hw_sched_scan_start(struct ieee80211_hw *hw,
+int cw1200_hw_sched_scan_start(struct ieee80211_hw *hw,
                                struct ieee80211_vif *vif,
                                struct cfg80211_sched_scan_request *req,
                                struct ieee80211_sched_scan_ies *ies);
-void xradio_hw_sched_scan_stop(struct xradio_common *priv);
-void xradio_sched_scan_work(struct work_struct *work);
+void cw1200_hw_sched_scan_stop(struct cw1200_common *priv);
+void cw1200_sched_scan_work(struct work_struct *work);
 #endif /*ROAM_OFFLOAD*/
-void xradio_scan_work(struct work_struct *work);
-void xradio_scan_timeout(struct work_struct *work);
-void xradio_scan_complete_cb(struct xradio_common *priv,
+void cw1200_scan_work(struct work_struct *work);
+void cw1200_scan_timeout(struct work_struct *work);
+void cw1200_scan_complete_cb(struct cw1200_common *priv,
                              struct wsm_scan_complete *arg);
 
 /* ******************************************************************** */
 /* Raw probe requests TX workaround					*/
-void xradio_probe_work(struct work_struct *work);
+void cw1200_probe_work(struct work_struct *work);
 #ifdef CONFIG_XRADIO_TESTMODE
 /* Advance Scan Timer							*/
-void xradio_advance_scan_timeout(struct work_struct *work);
+void cw1200_advance_scan_timeout(struct work_struct *work);
 #endif
 
 #endif

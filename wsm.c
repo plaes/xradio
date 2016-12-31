@@ -16,7 +16,7 @@
 #include <linux/sched.h>
 #include <linux/random.h>
 
-#include "xradio.h"
+#include "cw1200.h"
 #include "wsm.h"
 #include "bh.h"
 #include "itp.h"
@@ -83,31 +83,31 @@
 
 static void wsm_buf_reset(struct wsm_buf *buf);
 static int wsm_buf_reserve(struct wsm_buf *buf, size_t extra_size);
-static int get_interface_id_scanning(struct xradio_common *hw_priv);
+static int get_interface_id_scanning(struct cw1200_common *hw_priv);
 
-static int wsm_cmd_send(struct xradio_common *hw_priv,
+static int wsm_cmd_send(struct cw1200_common *hw_priv,
 			struct wsm_buf *buf,
 			void *arg, u16 cmd, long tmo, int if_id);
 
-static struct xradio_vif
-	*wsm_get_interface_for_tx(struct xradio_common *hw_priv);
+static struct cw1200_vif
+	*wsm_get_interface_for_tx(struct cw1200_common *hw_priv);
 
-static inline void wsm_cmd_lock(struct xradio_common *hw_priv)
+static inline void wsm_cmd_lock(struct cw1200_common *hw_priv)
 {
 	mutex_lock(&hw_priv->wsm_cmd_mux);
 }
 
-static inline void wsm_cmd_unlock(struct xradio_common *hw_priv)
+static inline void wsm_cmd_unlock(struct cw1200_common *hw_priv)
 {
 	mutex_unlock(&hw_priv->wsm_cmd_mux);
 }
 
-static inline void wsm_oper_lock(struct xradio_common *hw_priv)
+static inline void wsm_oper_lock(struct cw1200_common *hw_priv)
 {
 	mutex_lock(&hw_priv->wsm_oper_lock);
 }
 
-static inline void wsm_oper_unlock(struct xradio_common *hw_priv)
+static inline void wsm_oper_unlock(struct cw1200_common *hw_priv)
 {
 	mutex_unlock(&hw_priv->wsm_oper_lock);
 }
@@ -115,7 +115,7 @@ static inline void wsm_oper_unlock(struct xradio_common *hw_priv)
 /* ******************************************************************** */
 /* WSM API implementation						*/
 
-static int wsm_generic_confirm(struct xradio_common *hw_priv,
+static int wsm_generic_confirm(struct cw1200_common *hw_priv,
 			     void *arg,
 			     struct wsm_buf *buf)
 {
@@ -130,7 +130,7 @@ underflow:
 }
 
 #if defined(DGB_XRADIO_HWT)
-int wsm_hwt_cmd(struct xradio_common *hw_priv, void *arg, size_t arg_size)
+int wsm_hwt_cmd(struct cw1200_common *hw_priv, void *arg, size_t arg_size)
 {
 	int ret = 0;
 	struct wsm_buf *buf = &hw_priv->wsm_cmd_buf;
@@ -149,7 +149,7 @@ nomem:
 #endif
 
 #ifdef XR_RRM//RadioResourceMeasurement
-static int wsm_start_measure_requset(struct xradio_common *hw_priv,
+static int wsm_start_measure_requset(struct cw1200_common *hw_priv,
 		                                MEASUREMENT_PARAMETERS *arg,
 		                                              int  if_id)
 {
@@ -170,7 +170,7 @@ static int wsm_start_measure_requset(struct xradio_common *hw_priv,
 
 }
 
-int wsm_11k_measure_requset(struct xradio_common  *hw_priv,
+int wsm_11k_measure_requset(struct cw1200_common  *hw_priv,
                                                u8  measure_type,
                                               u16  ChannelNum,
                                               u16  Duration)
@@ -214,7 +214,7 @@ int wsm_11k_measure_requset(struct xradio_common  *hw_priv,
 
 
 #endif//RadioResourceMeasurement
-int wsm_configuration(struct xradio_common *hw_priv,
+int wsm_configuration(struct cw1200_common *hw_priv,
 		      struct wsm_configuration *arg,
 		      int if_id)
 {
@@ -244,7 +244,7 @@ nomem:
 	return -ENOMEM;
 }
 
-static int wsm_configuration_confirm(struct xradio_common *hw_priv,
+static int wsm_configuration_confirm(struct cw1200_common *hw_priv,
 				     struct wsm_configuration *arg,
 				     struct wsm_buf *buf)
 {
@@ -273,18 +273,18 @@ underflow:
 
 /* ******************************************************************** */
 /*forcing upper layer to restart wifi.*/
-void wsm_upper_restart(struct xradio_common *hw_priv)
+void wsm_upper_restart(struct cw1200_common *hw_priv)
 {
 	int i = 0;
-	struct xradio_vif *priv = NULL;
+	struct cw1200_vif *priv = NULL;
 	wsm_printk(XRADIO_DBG_ERROR, "%s\n", __func__);
 #ifdef CONFIG_PM
-	xradio_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
+	cw1200_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
 #endif
 
 #if defined(CONFIG_XRADIO_USE_EXTENSIONS) && 0
 	spin_lock(&hw_priv->vif_list_lock);
-	xradio_for_each_vif(hw_priv, priv, i) {
+	cw1200_for_each_vif(hw_priv, priv, i) {
 		if (!priv)
 			continue;
 		ieee80211_driver_hang_notify(priv->vif, GFP_KERNEL);
@@ -295,7 +295,7 @@ void wsm_upper_restart(struct xradio_common *hw_priv)
 	if (!work_pending(&hw_priv->hw_restart_work)) {
 		bool reset = false;
 		spin_lock(&hw_priv->vif_list_lock);
-		xradio_for_each_vif(hw_priv, priv, i) {
+		cw1200_for_each_vif(hw_priv, priv, i) {
 			if (priv) {
 				reset = true;
 				break;
@@ -326,8 +326,8 @@ void wsm_upper_restart(struct xradio_common *hw_priv)
 
 void wsm_query_work(struct work_struct *work)
 {
-	struct xradio_common *hw_priv =
-		container_of(work, struct xradio_common, query_work);
+	struct cw1200_common *hw_priv =
+		container_of(work, struct cw1200_common, query_work);
 	u8 ret[100] = {0};
 	wsm_printk(XRADIO_DBG_ERROR, "%s\n", __func__); 
 
@@ -365,7 +365,7 @@ void wsm_query_work(struct work_struct *work)
 
 /* ******************************************************************** */
 
-int wsm_reset(struct xradio_common *hw_priv, const struct wsm_reset *arg,
+int wsm_reset(struct cw1200_common *hw_priv, const struct wsm_reset *arg,
 		int if_id)
 {
 	int ret;
@@ -393,7 +393,7 @@ struct wsm_mib {
 	size_t buf_size;
 };
 
-int wsm_read_mib(struct xradio_common *hw_priv, u16 mibId, void *_buf,
+int wsm_read_mib(struct cw1200_common *hw_priv, u16 mibId, void *_buf,
 			size_t buf_size, size_t arg_size)
 {
 	int ret;
@@ -418,7 +418,7 @@ nomem:
 	return -ENOMEM;
 }
 
-static int wsm_read_mib_confirm(struct xradio_common *hw_priv,
+static int wsm_read_mib_confirm(struct cw1200_common *hw_priv,
 				struct wsm_mib *arg,
 				struct wsm_buf *buf)
 {
@@ -444,7 +444,7 @@ underflow:
 
 /* ******************************************************************** */
 
-int wsm_write_mib(struct xradio_common *hw_priv, u16 mibId, void *_buf,
+int wsm_write_mib(struct cw1200_common *hw_priv, u16 mibId, void *_buf,
 			size_t buf_size, int if_id)
 {
 	int ret;
@@ -471,14 +471,14 @@ nomem:
 	return -ENOMEM;
 }
 
-static int wsm_write_mib_confirm(struct xradio_common *hw_priv,
+static int wsm_write_mib_confirm(struct cw1200_common *hw_priv,
 				struct wsm_mib *arg,
 				struct wsm_buf *buf,
 				int interface_link_id)
 {
 	int ret;
 	int i;
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 	ret = wsm_generic_confirm(hw_priv, arg, buf);
 	if (ret)
 		return ret;
@@ -491,13 +491,13 @@ static int wsm_write_mib_confirm(struct xradio_common *hw_priv,
 		/* update vif PM status. */
 		priv = xrwl_hwpriv_to_vifpriv(hw_priv, interface_link_id);
 		if (priv) {
-			xradio_enable_powersave(priv, powersave_enabled);
+			cw1200_enable_powersave(priv, powersave_enabled);
 			spin_unlock(&priv->vif_lock);
 		}
 
 		/* HW powersave base on vif except for generic vif. */
 		spin_lock(&hw_priv->vif_list_lock);
-		xradio_for_each_vif(hw_priv, priv, i) {
+		cw1200_for_each_vif(hw_priv, priv, i) {
 #ifdef P2P_MULTIVIF
 			if ((i == (XRWL_MAX_VIFS - 1)) || !priv)
 #else
@@ -515,7 +515,7 @@ static int wsm_write_mib_confirm(struct xradio_common *hw_priv,
 
 /* ******************************************************************** */
 
-int wsm_scan(struct xradio_common *hw_priv, const struct wsm_scan *arg,
+int wsm_scan(struct cw1200_common *hw_priv, const struct wsm_scan *arg,
 		int if_id)
 {
 	int i;
@@ -577,7 +577,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_stop_scan(struct xradio_common *hw_priv, int if_id)
+int wsm_stop_scan(struct cw1200_common *hw_priv, int if_id)
 {
 	int ret;
 	struct wsm_buf *buf = &hw_priv->wsm_cmd_buf;
@@ -589,7 +589,7 @@ int wsm_stop_scan(struct xradio_common *hw_priv, int if_id)
 }
 
 
-static int wsm_tx_confirm(struct xradio_common *hw_priv,
+static int wsm_tx_confirm(struct cw1200_common *hw_priv,
 			  struct wsm_buf *buf,
 			  int interface_link_id)
 {
@@ -606,11 +606,11 @@ static int wsm_tx_confirm(struct xradio_common *hw_priv,
 	tx_confirm.mediaDelay = WSM_GET32(buf);
 	tx_confirm.txQueueDelay = WSM_GET32(buf);
 
-	if (is_hardware_xradio(hw_priv)) {
+	if (is_hardware_cw1200(hw_priv)) {
 		/* TODO:COMBO:linkID will be stored in packetID*/
 		/* TODO:COMBO: Extract traffic resumption map */
-		tx_confirm.if_id = xradio_queue_get_if_id(tx_confirm.packetID);
-		tx_confirm.link_id = xradio_queue_get_link_id(
+		tx_confirm.if_id = cw1200_queue_get_if_id(tx_confirm.packetID);
+		tx_confirm.link_id = cw1200_queue_get_link_id(
 				tx_confirm.packetID);
 	} else {
 		tx_confirm.link_id = interface_link_id;
@@ -628,10 +628,10 @@ underflow:
 	return -EINVAL;
 }
 
-static int wsm_multi_tx_confirm(struct xradio_common *hw_priv,
+static int wsm_multi_tx_confirm(struct cw1200_common *hw_priv,
 				struct wsm_buf *buf, int interface_link_id)
 {
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 	int ret;
 	int count;
 	int i;
@@ -644,11 +644,11 @@ static int wsm_multi_tx_confirm(struct xradio_common *hw_priv,
 		if (ret < 0)
 			return ret;
 		else if (ret > 0)
-			xradio_bh_wakeup(hw_priv);
+			cw1200_bh_wakeup(hw_priv);
 	}
 	priv = xrwl_hwpriv_to_vifpriv(hw_priv, interface_link_id);
 	if (priv) {
-		xradio_debug_txed_multi(priv, count);
+		cw1200_debug_txed_multi(priv, count);
 		spin_unlock(&priv->vif_lock);
 	}
 	for (i = 0; i < count; ++i) {
@@ -665,7 +665,7 @@ underflow:
 
 /* ******************************************************************** */
 
-static int wsm_join_confirm(struct xradio_common *hw_priv,
+static int wsm_join_confirm(struct cw1200_common *hw_priv,
 			    struct wsm_join *arg,
 			    struct wsm_buf *buf)
 {
@@ -681,7 +681,7 @@ underflow:
 	return -EINVAL;
 }
 
-int wsm_join(struct xradio_common *hw_priv, struct wsm_join *arg,
+int wsm_join(struct cw1200_common *hw_priv, struct wsm_join *arg,
 	     int if_id)
 /*TODO: combo: make it work per vif.*/
 {
@@ -720,7 +720,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_set_bss_params(struct xradio_common *hw_priv,
+int wsm_set_bss_params(struct cw1200_common *hw_priv,
 			const struct wsm_set_bss_params *arg,
 			int if_id)
 {
@@ -747,7 +747,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_add_key(struct xradio_common *hw_priv, const struct wsm_add_key *arg,
+int wsm_add_key(struct cw1200_common *hw_priv, const struct wsm_add_key *arg,
 			int if_id)
 {
 	int ret;
@@ -770,7 +770,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_remove_key(struct xradio_common *hw_priv,
+int wsm_remove_key(struct cw1200_common *hw_priv,
 		   const struct wsm_remove_key *arg, int if_id)
 {
 	int ret;
@@ -795,7 +795,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_set_tx_queue_params(struct xradio_common *hw_priv,
+int wsm_set_tx_queue_params(struct cw1200_common *hw_priv,
 				const struct wsm_set_tx_queue_params *arg,
 				u8 id, int if_id)
 {
@@ -825,7 +825,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_set_edca_params(struct xradio_common *hw_priv,
+int wsm_set_edca_params(struct cw1200_common *hw_priv,
 				const struct wsm_edca_params *arg,
 				int if_id)
 {
@@ -872,7 +872,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_switch_channel(struct xradio_common *hw_priv,
+int wsm_switch_channel(struct cw1200_common *hw_priv,
 		       const struct wsm_switch_channel *arg,
 		       int if_id)
 {
@@ -904,7 +904,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_set_pm(struct xradio_common *hw_priv, const struct wsm_set_pm *arg,
+int wsm_set_pm(struct cw1200_common *hw_priv, const struct wsm_set_pm *arg,
 		int if_id)
 {
 	int ret;
@@ -938,7 +938,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_start(struct xradio_common *hw_priv, const struct wsm_start *arg,
+int wsm_start(struct cw1200_common *hw_priv, const struct wsm_start *arg,
 		int if_id)
 {
 	int ret;
@@ -974,7 +974,7 @@ nomem:
 /* This API is no longer present in WSC */
 /* ******************************************************************** */
 
-int wsm_beacon_transmit(struct xradio_common *hw_priv,
+int wsm_beacon_transmit(struct cw1200_common *hw_priv,
 			const struct wsm_beacon_transmit *arg,
 			int if_id)
 {
@@ -998,7 +998,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_start_find(struct xradio_common *hw_priv, int if_id)
+int wsm_start_find(struct cw1200_common *hw_priv, int if_id)
 {
 	int ret;
 	struct wsm_buf *buf = &hw_priv->wsm_cmd_buf;
@@ -1011,7 +1011,7 @@ int wsm_start_find(struct xradio_common *hw_priv, int if_id)
 
 /* ******************************************************************** */
 
-int wsm_stop_find(struct xradio_common *hw_priv, int if_id)
+int wsm_stop_find(struct cw1200_common *hw_priv, int if_id)
 {
 	int ret;
 	struct wsm_buf *buf = &hw_priv->wsm_cmd_buf;
@@ -1024,7 +1024,7 @@ int wsm_stop_find(struct xradio_common *hw_priv, int if_id)
 
 /* ******************************************************************** */
 
-int wsm_map_link(struct xradio_common *hw_priv, const struct wsm_map_link *arg,
+int wsm_map_link(struct cw1200_common *hw_priv, const struct wsm_map_link *arg,
 		int if_id)
 {
 	int ret;
@@ -1035,7 +1035,7 @@ int wsm_map_link(struct xradio_common *hw_priv, const struct wsm_map_link *arg,
 
 	WSM_PUT(buf, &arg->mac_addr[0], sizeof(arg->mac_addr));
 
-	if (is_hardware_xradio(hw_priv)) {
+	if (is_hardware_cw1200(hw_priv)) {
 		WSM_PUT8(buf, arg->unmap);
 		WSM_PUT8(buf, arg->link_id);
 	} else {
@@ -1055,7 +1055,7 @@ nomem:
 
 /* ******************************************************************** */
 
-int wsm_update_ie(struct xradio_common *hw_priv,
+int wsm_update_ie(struct cw1200_common *hw_priv,
 		  const struct wsm_update_ie *arg, int if_id)
 {
 	int ret;
@@ -1080,7 +1080,7 @@ nomem:
 /* ******************************************************************** */
 #ifdef MCAST_FWDING
 /* 3.66 */
-static int wsm_give_buffer_confirm(struct xradio_common *hw_priv,
+static int wsm_give_buffer_confirm(struct cw1200_common *hw_priv,
                             struct wsm_buf *buf)
 {
 	wsm_printk(XRADIO_DBG_MSG, "HW Buf count %d\n", hw_priv->hw_bufs_used);
@@ -1091,7 +1091,7 @@ static int wsm_give_buffer_confirm(struct xradio_common *hw_priv,
 }
 
 /* 3.65 */
-int wsm_init_release_buffer_request(struct xradio_common *hw_priv, u8 index)
+int wsm_init_release_buffer_request(struct cw1200_common *hw_priv, u8 index)
 {
 	struct wsm_buf *buf = &hw_priv->wsm_release_buf[index];
 	u16 cmd = 0x0022; /* Buffer Request */
@@ -1118,7 +1118,7 @@ nomem:
 }
 
 /* 3.65 fixed memory leakage by yangfh*/
-int wsm_deinit_release_buffer(struct xradio_common *hw_priv)
+int wsm_deinit_release_buffer(struct cw1200_common *hw_priv)
 {
 	struct wsm_buf *buf = NULL;
 	int i, err = 0;
@@ -1138,7 +1138,7 @@ int wsm_deinit_release_buffer(struct xradio_common *hw_priv)
 }
 
 /* 3.68 */
-static int wsm_request_buffer_confirm(struct xradio_vif *priv,
+static int wsm_request_buffer_confirm(struct cw1200_vif *priv,
                             u8 *arg,
                             struct wsm_buf *buf)
 {
@@ -1147,7 +1147,7 @@ static int wsm_request_buffer_confirm(struct xradio_vif *priv,
 	int i;
 	u32 mask = 0;
 	u32 change_mask = 0;
-	struct xradio_common *hw_priv = priv->hw_priv;
+	struct cw1200_common *hw_priv = priv->hw_priv;
 
 	/* There is no status field in this message */
 	sta_asleep_mask = WSM_GET32(buf);
@@ -1206,7 +1206,7 @@ underflow:
 }
 
 /* 3.67 */
-int wsm_request_buffer_request(struct xradio_vif *priv,
+int wsm_request_buffer_request(struct cw1200_vif *priv,
 				u8 *arg)
 {
 	int ret;
@@ -1230,17 +1230,17 @@ nomem:
 
 #endif
 
-int wsm_set_keepalive_filter(struct xradio_vif *priv, bool enable)
+int wsm_set_keepalive_filter(struct cw1200_vif *priv, bool enable)
 {
-        struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+        struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 
         priv->rx_filter.keepalive = enable;
         return wsm_set_rx_filter(hw_priv, &priv->rx_filter, priv->if_id);
 }
 
-int wsm_set_probe_responder(struct xradio_vif *priv, bool enable)
+int wsm_set_probe_responder(struct cw1200_vif *priv, bool enable)
 {
-        struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+        struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 
         priv->rx_filter.probeResponder = enable;
         return wsm_set_rx_filter(hw_priv, &priv->rx_filter, priv->if_id);
@@ -1248,7 +1248,7 @@ int wsm_set_probe_responder(struct xradio_vif *priv, bool enable)
 /* ******************************************************************** */
 /* WSM indication events implementation					*/
 
-static int wsm_startup_indication(struct xradio_common *hw_priv,
+static int wsm_startup_indication(struct cw1200_common *hw_priv,
 					struct wsm_buf *buf)
 {
 	u16 status;
@@ -1310,7 +1310,7 @@ underflow:
 }
 
 //add by yangfh 2014-10-31 16:58:53
-void wms_send_deauth_to_self(struct xradio_common *hw_priv, struct xradio_vif *priv)
+void wms_send_deauth_to_self(struct cw1200_common *hw_priv, struct cw1200_vif *priv)
 {
 	struct sk_buff *skb = NULL;
 	struct ieee80211_mgmt *deauth = NULL;
@@ -1363,7 +1363,7 @@ void wms_send_deauth_to_self(struct xradio_common *hw_priv, struct xradio_vif *p
 	}
 }
 
-void wms_send_disassoc_to_self(struct xradio_common *hw_priv, struct xradio_vif *priv)
+void wms_send_disassoc_to_self(struct cw1200_common *hw_priv, struct cw1200_vif *priv)
 {
 	struct sk_buff *skb = NULL;
 	struct ieee80211_mgmt *disassoc = NULL;
@@ -1415,12 +1415,12 @@ void wms_send_disassoc_to_self(struct xradio_common *hw_priv, struct xradio_vif 
 	}
 }
 
-static int wsm_receive_indication(struct xradio_common *hw_priv,
+static int wsm_receive_indication(struct cw1200_common *hw_priv,
 					int interface_link_id,
 					struct wsm_buf *buf,
 					struct sk_buff **skb_p)
 {
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 
 	hw_priv->rx_timestamp = jiffies;
 	if (hw_priv->wsm_cbc.rx) {
@@ -1436,7 +1436,7 @@ static int wsm_receive_indication(struct xradio_common *hw_priv,
 
 		/* TODO:COMBO: Frames received from scanning are received
 		* with interface ID == 2 */
-		if (is_hardware_xradio(hw_priv)) {
+		if (is_hardware_cw1200(hw_priv)) {
 			if (interface_link_id == XRWL_GENERIC_IF_ID) {
 				/* Frames received in response to SCAN
 				 * Request */
@@ -1506,15 +1506,15 @@ underflow:
 	return -EINVAL;
 }
 
-static int wsm_event_indication(struct xradio_common *hw_priv,
+static int wsm_event_indication(struct cw1200_common *hw_priv,
 				struct wsm_buf *buf,
 				int interface_link_id)
 {
 	int first;
-	struct xradio_wsm_event *event = NULL;
-	struct xradio_vif *priv;
+	struct cw1200_wsm_event *event = NULL;
+	struct cw1200_vif *priv;
 
-	if (!is_hardware_xradio(hw_priv))
+	if (!is_hardware_cw1200(hw_priv))
 		interface_link_id = 0;
 
 	priv = xrwl_hwpriv_to_vifpriv(hw_priv, interface_link_id);
@@ -1532,7 +1532,7 @@ static int wsm_event_indication(struct xradio_common *hw_priv,
 	}
 	spin_unlock(&priv->vif_lock);
 
-	event = xr_kzalloc(sizeof(struct xradio_wsm_event), false);
+	event = xr_kzalloc(sizeof(struct cw1200_wsm_event), false);
 	if (event == NULL) {
 		wsm_printk(XRADIO_DBG_ERROR, "%s:xr_kzalloc failed!", __func__);
 		return -EINVAL;
@@ -1561,7 +1561,7 @@ underflow:
 }
 
 #define PRINT_11K_MEASRURE 1
-static int wsm_measure_cmpl_indication(struct xradio_common *hw_priv,
+static int wsm_measure_cmpl_indication(struct cw1200_common *hw_priv,
 				                       struct wsm_buf *buf)
 {
     MEASUREMENT_COMPLETE measure_cmpl;
@@ -1676,7 +1676,7 @@ underflow:
 	return -EINVAL;
 }
 /* TODO:COMBO:Make this perVIFF once mac80211 support is available */
-static int wsm_channel_switch_indication(struct xradio_common *hw_priv,
+static int wsm_channel_switch_indication(struct cw1200_common *hw_priv,
 						struct wsm_buf *buf)
 {
 	wsm_unlock_tx(hw_priv); /* Re-enable datapath */
@@ -1693,14 +1693,14 @@ underflow:
 	return -EINVAL;
 }
 
-static int wsm_set_pm_indication(struct xradio_common *hw_priv,
+static int wsm_set_pm_indication(struct cw1200_common *hw_priv,
 					struct wsm_buf *buf)
 {
 	wsm_oper_unlock(hw_priv);
 	return 0;
 }
 
-static int wsm_scan_complete_indication(struct xradio_common *hw_priv,
+static int wsm_scan_complete_indication(struct cw1200_common *hw_priv,
 					struct wsm_buf *buf)
 {
 #ifdef ROAM_OFFLOAD
@@ -1723,7 +1723,7 @@ underflow:
 	return -EINVAL;
 }
 
-static int wsm_find_complete_indication(struct xradio_common *hw_priv,
+static int wsm_find_complete_indication(struct cw1200_common *hw_priv,
 					struct wsm_buf *buf)
 {
 	/* TODO: Implement me. */
@@ -1731,21 +1731,21 @@ static int wsm_find_complete_indication(struct xradio_common *hw_priv,
 	return 0;
 }
 
-static int wsm_suspend_resume_indication(struct xradio_common *hw_priv,
+static int wsm_suspend_resume_indication(struct cw1200_common *hw_priv,
 					 int interface_link_id,
 					 struct wsm_buf *buf)
 {
 	if (hw_priv->wsm_cbc.suspend_resume) {
 		u32 flags;
 		struct wsm_suspend_resume arg;
-		struct xradio_vif *priv;
+		struct cw1200_vif *priv;
 
-		if (is_hardware_xradio(hw_priv)) {
+		if (is_hardware_cw1200(hw_priv)) {
 			int i;
 			arg.if_id = interface_link_id;
 			/* TODO:COMBO: Extract bitmap from suspend-resume
 			* TX indication */
-			xradio_for_each_vif(hw_priv, priv, i) {
+			cw1200_for_each_vif(hw_priv, priv, i) {
 				if (!priv)
 					continue;
 				if (priv->join_status ==
@@ -1784,7 +1784,7 @@ underflow:
 /* ******************************************************************** */
 /* WSM TX								*/
 
-int wsm_cmd_send(struct xradio_common *hw_priv,
+int wsm_cmd_send(struct cw1200_common *hw_priv,
 		 struct wsm_buf *buf,
 		 void *arg, u16 cmd, long tmo, int if_id)
 {
@@ -1826,7 +1826,7 @@ int wsm_cmd_send(struct xradio_common *hw_priv,
 
 	((__le16 *)buf->begin)[0] = __cpu_to_le16(buf_len);
 	((__le16 *)buf->begin)[1] = __cpu_to_le16(cmd |
-					((is_hardware_xradio(hw_priv)) ? (if_id << 6) : 0));
+					((is_hardware_cw1200(hw_priv)) ? (if_id << 6) : 0));
 
 	spin_lock(&hw_priv->wsm_cmd.lock);
 	SYS_BUG(hw_priv->wsm_cmd.ptr);
@@ -1837,7 +1837,7 @@ int wsm_cmd_send(struct xradio_common *hw_priv,
 	hw_priv->wsm_cmd.cmd = cmd;
 	spin_unlock(&hw_priv->wsm_cmd.lock);
 
-	xradio_bh_wakeup(hw_priv);
+	cw1200_bh_wakeup(hw_priv);
 
 	if (unlikely(hw_priv->bh_error)) {
 		/* Do not wait for timeout if BH is dead. Exit immediately. */
@@ -1913,7 +1913,7 @@ int wsm_cmd_send(struct xradio_common *hw_priv,
 /* ******************************************************************** */
 /* WSM TX port control							*/
 
-void wsm_lock_tx(struct xradio_common *hw_priv)
+void wsm_lock_tx(struct cw1200_common *hw_priv)
 {
 	down(&hw_priv->tx_lock_sem);
 	atomic_add(1, &hw_priv->tx_lock);
@@ -1923,9 +1923,9 @@ void wsm_lock_tx(struct xradio_common *hw_priv)
 	up(&hw_priv->tx_lock_sem);
 }
 
-void wsm_vif_lock_tx(struct xradio_vif *priv)
+void wsm_vif_lock_tx(struct cw1200_vif *priv)
 {
-	struct xradio_common *hw_priv = priv->hw_priv;
+	struct cw1200_common *hw_priv = priv->hw_priv;
 	down(&hw_priv->tx_lock_sem);
 	if (atomic_add_return(1, &hw_priv->tx_lock) == 1) {
 		if (wsm_vif_flush_tx(priv))
@@ -1935,13 +1935,13 @@ void wsm_vif_lock_tx(struct xradio_vif *priv)
 	up(&hw_priv->tx_lock_sem);
 }
 
-void wsm_lock_tx_async(struct xradio_common *hw_priv)
+void wsm_lock_tx_async(struct cw1200_common *hw_priv)
 {
 	if (atomic_add_return(1, &hw_priv->tx_lock) == 1)
 		wsm_printk(XRADIO_DBG_MSG, "TX is locked (async).\n");
 }
 
-bool wsm_flush_tx(struct xradio_common *hw_priv)
+bool wsm_flush_tx(struct cw1200_common *hw_priv)
 {
 	long timeout = WSM_CMD_LAST_CHANCE_TIMEOUT;
 
@@ -1963,7 +1963,7 @@ bool wsm_flush_tx(struct xradio_common *hw_priv)
 		/* Get "oldest" frame, if any frames stuck in firmware, 
 		   query all of them until max timeout. */
 		int num = hw_priv->hw_bufs_used + 1;
-		while (xradio_query_txpkt_timeout(hw_priv, XRWL_ALL_IFS, 
+		while (cw1200_query_txpkt_timeout(hw_priv, XRWL_ALL_IFS, 
 		                                  0xffffffff, &timeout)) {
 			if (timeout < 0 || !num) {
 				/* Hmmm... Not good. Frame had stuck in firmware. */
@@ -1991,9 +1991,9 @@ bool wsm_flush_tx(struct xradio_common *hw_priv)
 	}
 }
 
-bool wsm_vif_flush_tx(struct xradio_vif *priv)
+bool wsm_vif_flush_tx(struct cw1200_vif *priv)
 {
-	struct xradio_common *hw_priv = priv->hw_priv;
+	struct cw1200_common *hw_priv = priv->hw_priv;
 	long timeout = WSM_CMD_LAST_CHANCE_TIMEOUT;
 	int if_id = priv->if_id;
 
@@ -2015,7 +2015,7 @@ bool wsm_vif_flush_tx(struct xradio_vif *priv)
 		/* Get "oldest" frame, if any frames stuck in firmware, 
 		   query all of them until max timeout. */
 		int num = hw_priv->hw_bufs_used_vif[if_id] + 1;
-		while (xradio_query_txpkt_timeout(hw_priv, if_id, 0xffffffff, &timeout)) {
+		while (cw1200_query_txpkt_timeout(hw_priv, if_id, 0xffffffff, &timeout)) {
 			if (timeout < 0 || !num) {
 				/* Hmmm... Not good. Frame had stuck in firmware. */
 				wsm_printk(XRADIO_DBG_ERROR, "%s: if_id=%d, hw_bufs_used_vif=%d, num=%d\n", 
@@ -2043,7 +2043,7 @@ bool wsm_vif_flush_tx(struct xradio_vif *priv)
 }
 
 
-void wsm_unlock_tx(struct xradio_common *hw_priv)
+void wsm_unlock_tx(struct cw1200_common *hw_priv)
 {
 	int tx_lock;
 	if (hw_priv->bh_error)
@@ -2054,7 +2054,7 @@ void wsm_unlock_tx(struct xradio_common *hw_priv)
 		if (tx_lock < 0) {
 			SYS_BUG(1);
 		} else if (tx_lock == 0) {
-			xradio_bh_wakeup(hw_priv);
+			cw1200_bh_wakeup(hw_priv);
 			wsm_printk(XRADIO_DBG_MSG, "TX is unlocked.\n");
 		}
 	}
@@ -2063,7 +2063,7 @@ void wsm_unlock_tx(struct xradio_common *hw_priv)
 /* ******************************************************************** */
 /* WSM RX								*/
 
-int wsm_handle_exception(struct xradio_common *hw_priv, u8 *data, size_t len)
+int wsm_handle_exception(struct cw1200_common *hw_priv, u8 *data, size_t len)
 {
 	struct wsm_buf buf;
 	u32 reason;
@@ -2071,7 +2071,7 @@ int wsm_handle_exception(struct xradio_common *hw_priv, u8 *data, size_t len)
 	char fname[48];
 	int i = 0;
 #if defined(CONFIG_XRADIO_USE_EXTENSIONS)
-	struct xradio_vif *priv = NULL;
+	struct cw1200_vif *priv = NULL;
 #endif
 
 #ifdef CONFIG_XRADIO_DEBUG
@@ -2085,10 +2085,10 @@ int wsm_handle_exception(struct xradio_common *hw_priv, u8 *data, size_t len)
 
 #if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 	/* Send the event upwards on the FW exception */
-	xradio_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
+	cw1200_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
 
 	spin_lock(&hw_priv->vif_list_lock);
-	xradio_for_each_vif(hw_priv, priv, i) {
+	cw1200_for_each_vif(hw_priv, priv, i) {
 		if (!priv)
 			continue;
 		//ieee80211_driver_hang_notify(priv->vif, GFP_KERNEL);
@@ -2133,7 +2133,7 @@ underflow:
 	return -EINVAL;
 }
 
-static int wsm_debug_indication(struct xradio_common *hw_priv,
+static int wsm_debug_indication(struct cw1200_common *hw_priv,
 				                struct wsm_buf       *buf)
 {
     //for only one debug item.
@@ -2190,7 +2190,7 @@ extern u16 hwt_tx_num;
 extern int sent_num;
 extern struct timeval hwt_start_time;
 extern struct timeval hwt_end_time;
-int wsm_hwt_tx_confirm(struct xradio_common *hw_priv, struct wsm_buf *buf)
+int wsm_hwt_tx_confirm(struct cw1200_common *hw_priv, struct wsm_buf *buf)
 {
 	u32 *packetID = (u32 *)(buf->data+8);
 	u8 num = *(buf->data + 6);
@@ -2223,7 +2223,7 @@ u16 recv_num = 0;
 extern u8  hwt_rx_en;
 extern u16 hwt_rx_len;
 extern u16 hwt_rx_num;
-int wsm_hwt_rx_frames(struct xradio_common *hw_priv, struct wsm_buf *buf)
+int wsm_hwt_rx_frames(struct cw1200_common *hw_priv, struct wsm_buf *buf)
 {
 
 	wsm_printk(XRADIO_DBG_NIY, "%s, status=%d, len=%d\n", __func__, 
@@ -2246,7 +2246,7 @@ int wsm_hwt_rx_frames(struct xradio_common *hw_priv, struct wsm_buf *buf)
 	return 0;
 }
 
-int wsm_hwt_enc_results(struct xradio_common *hw_priv, struct wsm_buf *buf)
+int wsm_hwt_enc_results(struct cw1200_common *hw_priv, struct wsm_buf *buf)
 {
 	wsm_printk(XRADIO_DBG_ALWY, "%s, status=%d, enc throughput=%d.%02dMbps\n", __func__,
 	           *(u16 *)(buf->data+2), *(u32 *)(buf->data+8), *(u32 *)(buf->data+12));
@@ -2254,7 +2254,7 @@ int wsm_hwt_enc_results(struct xradio_common *hw_priv, struct wsm_buf *buf)
 	return 0;
 }
 
-int wsm_hwt_mic_results(struct xradio_common *hw_priv, struct wsm_buf *buf)
+int wsm_hwt_mic_results(struct cw1200_common *hw_priv, struct wsm_buf *buf)
 {
 	wsm_printk(XRADIO_DBG_ALWY, "%s, status=%d, mic throughput=%d.%02dMbps\n", __func__,
 	           *(u16 *)(buf->data+2), *(u32 *)(buf->data+8), *(u32 *)(buf->data+12));
@@ -2264,17 +2264,17 @@ int wsm_hwt_mic_results(struct xradio_common *hw_priv, struct wsm_buf *buf)
 #endif //DGB_XRADIO_HWT
 
 
-int wsm_handle_rx(struct xradio_common *hw_priv, int id,
+int wsm_handle_rx(struct cw1200_common *hw_priv, int id,
 		  struct wsm_hdr *wsm, struct sk_buff **skb_p)
 {
 	int ret = 0;
 	struct wsm_buf wsm_buf;
-	struct xradio_vif *priv = NULL;
+	struct cw1200_vif *priv = NULL;
 	int i = 0;
 	int interface_link_id = (id >> 6) & 0x0F;
 #ifdef ROAM_OFFLOAD
 #if 0
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 	priv = xrwl_hwpriv_to_vifpriv(hw_priv, interface_link_id);
 	if (unlikely(!priv)) {
 		SYS_WARN(1);
@@ -2399,7 +2399,7 @@ int wsm_handle_rx(struct xradio_common *hw_priv, int id,
 #ifdef MCAST_FWDING
 		case 0x0423: /* req buffer cfm*/
 			if (likely(wsm_arg)){
-				xradio_for_each_vif(hw_priv, priv, i) {
+				cw1200_for_each_vif(hw_priv, priv, i) {
 					if (priv && (priv->join_status == XRADIO_JOIN_STATUS_AP))
 						ret = wsm_request_buffer_confirm(priv,
 								wsm_arg, &wsm_buf);
@@ -2481,7 +2481,7 @@ int wsm_handle_rx(struct xradio_common *hw_priv, int id,
 		case 0x0806:
 #ifdef ROAM_OFFLOAD
 			if(hw_priv->auto_scanning && hw_priv->frame_rcvd) {
-				struct xradio_vif *priv;
+				struct cw1200_vif *priv;
 				hw_priv->frame_rcvd = 0;
 				priv = xrwl_hwpriv_to_vifpriv(hw_priv, hw_priv->scan.if_id);
 				if (unlikely(!priv)) {
@@ -2509,7 +2509,7 @@ int wsm_handle_rx(struct xradio_common *hw_priv, int id,
 				}
 				wsm_printk(XRADIO_DBG_MSG, \
 				"Send Testmode Event.\n");
-				xradio_testmode_event(priv->hw->wiphy,
+				cw1200_testmode_event(priv->hw->wiphy,
 					NL80211_CMD_NEW_SCAN_RESULTS, 0,
 					0, GFP_KERNEL);
 
@@ -2542,15 +2542,15 @@ out:
 	return ret;
 }
 
-static bool wsm_handle_tx_data(struct xradio_vif *priv,
+static bool wsm_handle_tx_data(struct cw1200_vif *priv,
 			       const struct wsm_tx *wsm,
 			       const struct ieee80211_tx_info *tx_info,
-			       struct xradio_txpriv *txpriv,
-			       struct xradio_queue *queue)
+			       struct cw1200_txpriv *txpriv,
+			       struct cw1200_queue *queue)
 {
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 #ifdef P2P_MULTIVIF
-	struct xradio_vif *p2p_if_vif = NULL;
+	struct cw1200_vif *p2p_if_vif = NULL;
 #endif
 	bool handled = false;
 	const struct ieee80211_hdr *frame =
@@ -2637,7 +2637,7 @@ static bool wsm_handle_tx_data(struct xradio_vif *priv,
 					"is dropped.\n");
 			action = doDrop;
 		}
-		if (xradio_queue_get_generation(wsm->packetID) >
+		if (cw1200_queue_get_generation(wsm->packetID) >
 				XRADIO_MAX_REQUEUE_ATTEMPTS) {
 			/* HACK!!! WSM324 firmware has tendency to requeue
 			 * multicast frames in a loop, causing performance
@@ -2707,10 +2707,10 @@ static bool wsm_handle_tx_data(struct xradio_vif *priv,
 		 * We are dropping everything except AUTH in non-joined mode. */
 		wsm_printk(XRADIO_DBG_MSG, "Drop frame (0x%.4X).\n", fctl);
 #ifdef CONFIG_XRADIO_TESTMODE
-		SYS_BUG(xradio_queue_remove(hw_priv, queue,
+		SYS_BUG(cw1200_queue_remove(hw_priv, queue,
 			__le32_to_cpu(wsm->packetID)));
 #else
-		SYS_BUG(xradio_queue_remove(queue,
+		SYS_BUG(cw1200_queue_remove(queue,
 			__le32_to_cpu(wsm->packetID)));
 #endif /*CONFIG_XRADIO_TESTMODE*/
 		handled = true;
@@ -2721,7 +2721,7 @@ static bool wsm_handle_tx_data(struct xradio_vif *priv,
 		/* p2p should disconnect when sta try to join a different channel AP, 
 		 * because no good performance in this case.
 		 */
-		struct xradio_vif *p2p_tmp_vif = __xrwl_hwpriv_to_vifpriv(hw_priv, 1);
+		struct cw1200_vif *p2p_tmp_vif = __xrwl_hwpriv_to_vifpriv(hw_priv, 1);
 		if (priv->if_id == 0 && p2p_tmp_vif) {
 			if (p2p_tmp_vif->join_status >= XRADIO_JOIN_STATUS_STA && 
 			    hw_priv->channel_changed) {
@@ -2807,10 +2807,10 @@ static bool wsm_handle_tx_data(struct xradio_vif *priv,
 	return handled;
 }
 
-static int xradio_get_prio_queue(struct xradio_vif *priv,
+static int cw1200_get_prio_queue(struct cw1200_vif *priv,
 				 u32 link_id_map, int *total)
 {
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	static u32 urgent;
 	struct wsm_edca_queue_params *edca;
 	unsigned score, best = -1;
@@ -2821,7 +2821,7 @@ static int xradio_get_prio_queue(struct xradio_vif *priv,
 
 	/* search for a winner using edca params */
 	for (i = 0; i < 4; ++i) {
-		queued = xradio_queue_get_num_queued(priv,
+		queued = cw1200_queue_get_num_queued(priv,
 				&hw_priv->tx_queue[i],
 				link_id_map);
 		if (!queued)
@@ -2840,10 +2840,10 @@ static int xradio_get_prio_queue(struct xradio_vif *priv,
 	/* override winner if bursting */
 	if (winner >= 0 && hw_priv->tx_burst_idx >= 0 &&
 			winner != hw_priv->tx_burst_idx &&
-			!xradio_queue_get_num_queued(priv,
+			!cw1200_queue_get_num_queued(priv,
 				&hw_priv->tx_queue[winner],
 				link_id_map & urgent) &&
-			xradio_queue_get_num_queued(priv,
+			cw1200_queue_get_num_queued(priv,
 				&hw_priv->tx_queue[hw_priv->tx_burst_idx],
 				link_id_map))
 		winner = hw_priv->tx_burst_idx;
@@ -2851,12 +2851,12 @@ static int xradio_get_prio_queue(struct xradio_vif *priv,
 	return winner;
 }
 
-static int wsm_get_tx_queue_and_mask(struct xradio_vif *priv,
-				     struct xradio_queue **queue_p,
+static int wsm_get_tx_queue_and_mask(struct cw1200_vif *priv,
+				     struct cw1200_queue **queue_p,
 				     u32 *tx_allowed_mask_p,
 				     bool *more)
 {
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	int idx;
 	u32 tx_allowed_mask;
 	int total = 0;
@@ -2864,7 +2864,7 @@ static int wsm_get_tx_queue_and_mask(struct xradio_vif *priv,
 	/* Search for a queue with multicast frames buffered */
 	if (priv->tx_multicast) {
 		tx_allowed_mask = BIT(priv->link_id_after_dtim);
-		idx = xradio_get_prio_queue(priv,
+		idx = cw1200_get_prio_queue(priv,
 				tx_allowed_mask, &total);
 		if (idx >= 0) {
 			*more = total > 1;
@@ -2881,7 +2881,7 @@ static int wsm_get_tx_queue_and_mask(struct xradio_vif *priv,
 	} else {
 		tx_allowed_mask |= BIT(priv->link_id_after_dtim);
 	}
-	idx = xradio_get_prio_queue(priv,
+	idx = cw1200_get_prio_queue(priv,
 			tx_allowed_mask, &total);
 	if (idx < 0)
 		return -ENOENT;
@@ -2892,15 +2892,15 @@ found:
 	return 0;
 }
 
-int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
+int wsm_get_tx(struct cw1200_common *hw_priv, u8 **data,
 	       size_t *tx_len, int *burst, int *vif_selected)
 {
 	struct wsm_tx *wsm = NULL;
 	struct ieee80211_tx_info *tx_info;
-	struct xradio_queue *queue = NULL;
+	struct cw1200_queue *queue = NULL;
 	int queue_num;
 	u32 tx_allowed_mask = 0;
-	struct xradio_txpriv *txpriv = NULL;
+	struct cw1200_txpriv *txpriv = NULL;
 #ifdef P2P_MULTIVIF
 	int first = 1;
 	int tmp_if_id = -1;
@@ -2921,7 +2921,7 @@ int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
 	/* More is used only for broadcasts. */
 	bool more = false;
 
-	count = xradio_itp_get_tx(hw_priv, data, tx_len, burst);
+	count = cw1200_itp_get_tx(hw_priv, data, tx_len, burst);
 	if (count)
 		return count;
 
@@ -2937,7 +2937,7 @@ int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
 	} else {
 		for (;;) {
 			int ret;
-			struct xradio_vif *priv;
+			struct cw1200_vif *priv;
 #if 0
 			int num_pending_vif0, num_pending_vif1;
 #endif
@@ -2995,7 +2995,7 @@ int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
 			}
 #endif
 
-			/* This can be removed probably: xradio_vif will not
+			/* This can be removed probably: cw1200_vif will not
 			 * be in hw_priv->vif_list (as returned from
 			 * wsm_get_interface_for_tx) until it's fully
 			 * enabled, so statement above will take case of that*/
@@ -3042,7 +3042,7 @@ int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
 				break;
 			}
 
-			if (xradio_queue_get(queue,
+			if (cw1200_queue_get(queue,
 					priv->if_id,
 					tx_allowed_mask,
 					&wsm, &tx_info, &txpriv)) {
@@ -3140,7 +3140,7 @@ int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
 			/* allow bursting if txop is set */
 			if (priv->edca.params[queue_num].txOpLimit)
 				*burst = min(*burst,
-					(int)xradio_queue_get_num_queued(priv,
+					(int)cw1200_queue_get_num_queued(priv,
 						queue, tx_allowed_mask) + 1);
 			else
 				*burst = 1;
@@ -3181,7 +3181,7 @@ int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
 	return count;
 }
 
-void wsm_txed(struct xradio_common *hw_priv, u8 *data)
+void wsm_txed(struct cw1200_common *hw_priv, u8 *data)
 {
 	if (data == hw_priv->wsm_cmd.ptr) {
 		spin_lock(&hw_priv->wsm_cmd.lock);
@@ -3240,10 +3240,10 @@ static int wsm_buf_reserve(struct wsm_buf *buf, size_t extra_size)
 	}
 }
 
-static struct xradio_vif 
-	*wsm_get_interface_for_tx(struct xradio_common *hw_priv)
+static struct cw1200_vif 
+	*wsm_get_interface_for_tx(struct cw1200_common *hw_priv)
 {
-	struct xradio_vif *priv = NULL, *i_priv;
+	struct cw1200_vif *priv = NULL, *i_priv;
 	int i = hw_priv->if_id_selected;
 
 	if ( 1 /*TODO:COMBO*/) {
@@ -3265,7 +3265,7 @@ static struct xradio_vif
 	return priv;
 }
 
-static inline int get_interface_id_scanning(struct xradio_common *hw_priv)
+static inline int get_interface_id_scanning(struct cw1200_common *hw_priv)
 {
 	if (hw_priv->scan.req || hw_priv->scan.direct_probe)
 		return hw_priv->scan.if_id;

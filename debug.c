@@ -18,7 +18,7 @@
 #include <linux/rtc.h>
 #include <linux/time.h>
 
-#include "xradio.h"
+#include "cw1200.h"
 #include "hwio.h"
 #include "debug.h"
 
@@ -37,7 +37,7 @@ u8 dbg_logfile = XRADIO_DBG_ERROR;
 
 #ifdef CONFIG_XRADIO_DEBUGFS
 /* join_status */
-static const char * const xradio_debug_join_status[] = {
+static const char * const cw1200_debug_join_status[] = {
 	"passive",
 	"monitor",
 	"station",
@@ -45,13 +45,13 @@ static const char * const xradio_debug_join_status[] = {
 };
 
 /* WSM_JOIN_PREAMBLE_... */
-static const char * const xradio_debug_preamble[] = {
+static const char * const cw1200_debug_preamble[] = {
 	"long",
 	"short",
 	"long on 1 and 2 Mbps",
 };
 
-static const char * const xradio_debug_fw_types[] = {
+static const char * const cw1200_debug_fw_types[] = {
 	"ETF",
 	"WFM",
 	"WSM",
@@ -59,14 +59,14 @@ static const char * const xradio_debug_fw_types[] = {
 	"Platform test",
 };
 
-static const char * const xradio_debug_link_id[] = {
+static const char * const cw1200_debug_link_id[] = {
 	"OFF",
 	"REQ",
 	"SOFT",
 	"HARD",
 };
 
-static const char *xradio_debug_mode(int mode)
+static const char *cw1200_debug_mode(int mode)
 {
 	switch (mode) {
 	case NL80211_IFTYPE_UNSPECIFIED:
@@ -90,8 +90,8 @@ static const char *xradio_debug_mode(int mode)
 	}
 }
 
-static void xradio_queue_status_show(struct seq_file *seq,
-				     struct xradio_queue *q)
+static void cw1200_queue_status_show(struct seq_file *seq,
+				     struct cw1200_queue *q)
 {
 	int i, if_id;
 	seq_printf(seq, "Queue       %d:\n", q->queue_id);
@@ -109,8 +109,8 @@ static void xradio_queue_status_show(struct seq_file *seq,
 	}
 }
 
-static void xradio_debug_print_map(struct seq_file *seq,
-				   struct xradio_vif *priv,
+static void cw1200_debug_print_map(struct seq_file *seq,
+				   struct cw1200_vif *priv,
 				   const char *label,
 				   u32 map)
 {
@@ -122,21 +122,21 @@ static void xradio_debug_print_map(struct seq_file *seq,
 		   priv->hw_priv->tx_queue_stats.map_capacity - 1);
 }
 
-static int xradio_version_show(struct seq_file *seq, void *v)
+static int cw1200_version_show(struct seq_file *seq, void *v)
 {
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	seq_printf(seq, "Driver Label:%s  %s\n", DRV_VERSION, DRV_BUILDTIME);
 	seq_printf(seq, "Firmware Label:%s\n", &hw_priv->wsm_caps.fw_label[0]);
 	return 0;
 }
 
-static int xradio_version_open(struct inode *inode, struct file *file)
+static int cw1200_version_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_version_show, inode->i_private);
+	return single_open(file, &cw1200_version_show, inode->i_private);
 }
 
 static const struct file_operations fops_version = {
-	.open = xradio_version_open,
+	.open = cw1200_version_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -144,10 +144,10 @@ static const struct file_operations fops_version = {
 };
 
 #if defined(DGB_XRADIO_QC)
-static int xradio_hwinfo_show(struct seq_file *seq, void *v)
+static int cw1200_hwinfo_show(struct seq_file *seq, void *v)
 {
 	int ret;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	u32 hw_arry[8] = { 0 };
 
 	//
@@ -167,13 +167,13 @@ static int xradio_hwinfo_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_hwinfo_open(struct inode *inode, struct file *file)
+static int cw1200_hwinfo_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_hwinfo_show, inode->i_private);
+	return single_open(file, &cw1200_hwinfo_show, inode->i_private);
 }
 
 static const struct file_operations fops_hwinfo = {
-	.open = xradio_hwinfo_open,
+	.open = cw1200_hwinfo_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -181,12 +181,12 @@ static const struct file_operations fops_hwinfo = {
 };
 #endif
 
-static int xradio_status_show_common(struct seq_file *seq, void *v)
+static int cw1200_status_show_common(struct seq_file *seq, void *v)
 {
 	int i;
 	struct list_head *item;
-	struct xradio_common *hw_priv = seq->private;
-	struct xradio_debug_common *d = hw_priv->debug;
+	struct cw1200_common *hw_priv = seq->private;
+	struct cw1200_debug_common *d = hw_priv->debug;
 	int ba_cnt, ba_acc, ba_cnt_rx, ba_acc_rx, ba_avg = 0, ba_avg_rx = 0;
 	bool ba_ena;
 
@@ -207,7 +207,7 @@ static int xradio_status_show_common(struct seq_file *seq, void *v)
 		hw_priv->wsm_caps.hardwareId,
 		hw_priv->wsm_caps.hardwareSubId);
 	seq_printf(seq, "Firmware:   %s %d.%d\n",
-		xradio_debug_fw_types[hw_priv->wsm_caps.firmwareType],
+		cw1200_debug_fw_types[hw_priv->wsm_caps.firmwareType],
 		hw_priv->wsm_caps.firmwareVersion,
 		hw_priv->wsm_caps.firmwareBuildNumber);
 	seq_printf(seq, "FW API:     %d\n",
@@ -220,12 +220,12 @@ static int xradio_status_show_common(struct seq_file *seq, void *v)
 			hw_priv->channel_switch_in_progress ?
 			" (switching)" : "");
 	seq_printf(seq, "HT:         %s\n",
-		xradio_is_ht(&hw_priv->ht_info) ? "on" : "off");
-	if (xradio_is_ht(&hw_priv->ht_info)) {
+		cw1200_is_ht(&hw_priv->ht_info) ? "on" : "off");
+	if (cw1200_is_ht(&hw_priv->ht_info)) {
 		seq_printf(seq, "Greenfield: %s\n",
-			xradio_ht_greenfield(&hw_priv->ht_info) ? "yes" : "no");
+			cw1200_ht_greenfield(&hw_priv->ht_info) ? "yes" : "no");
 		seq_printf(seq, "AMPDU dens: %d\n",
-			xradio_ht_ampdu_density(&hw_priv->ht_info));
+			cw1200_ht_ampdu_density(&hw_priv->ht_info));
 	}
 	spin_lock_bh(&hw_priv->tx_policy_cache.lock);
 	i = 0;
@@ -241,7 +241,7 @@ static int xradio_status_show_common(struct seq_file *seq, void *v)
 
 	seq_puts(seq, "\n");
 	for (i = 0; i < 4; ++i) {
-		xradio_queue_status_show(seq, &hw_priv->tx_queue[i]);
+		cw1200_queue_status_show(seq, &hw_priv->tx_queue[i]);
 		seq_puts(seq, "\n");
 	}
 	seq_printf(seq, "TX burst:   %d\n",
@@ -296,24 +296,24 @@ static int xradio_status_show_common(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_status_open_common(struct inode *inode, struct file *file)
+static int cw1200_status_open_common(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_status_show_common,
+	return single_open(file, &cw1200_status_show_common,
 		inode->i_private);
 }
 
 static const struct file_operations fops_status_common = {
-	.open = xradio_status_open_common,
+	.open = cw1200_status_open_common,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
 };
 
-static int xradio_counters_show(struct seq_file *seq, void *v)
+static int cw1200_counters_show(struct seq_file *seq, void *v)
 {
 	int ret;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	struct wsm_counters_table counters;
 
 	ret = wsm_get_counters_table(hw_priv, &counters);
@@ -356,24 +356,24 @@ static int xradio_counters_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_counters_open(struct inode *inode, struct file *file)
+static int cw1200_counters_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_counters_show,
+	return single_open(file, &cw1200_counters_show,
 		inode->i_private);
 }
 
 static const struct file_operations fops_counters = {
-	.open = xradio_counters_open,
+	.open = cw1200_counters_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
 };
 
-static int xradio_backoff_show(struct seq_file *seq, void *v)
+static int cw1200_backoff_show(struct seq_file *seq, void *v)
 {
 	int ret;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	struct wsm_backoff_counter counters;
 
 	ret = wsm_get_backoff_dbg(hw_priv, &counters);
@@ -402,14 +402,14 @@ static int xradio_backoff_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_backoff_open(struct inode *inode, struct file *file)
+static int cw1200_backoff_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_backoff_show,
+	return single_open(file, &cw1200_backoff_show,
 		inode->i_private);
 }
 
 static const struct file_operations fops_backoff = {
-	.open = xradio_backoff_open,
+	.open = cw1200_backoff_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -419,10 +419,10 @@ static const struct file_operations fops_backoff = {
 extern u32 TxedRateIdx_Map[24];
 extern u32 RxedRateIdx_Map[24];
 
-static int xradio_ratemap_show(struct seq_file *seq, void *v)
+static int cw1200_ratemap_show(struct seq_file *seq, void *v)
 {
 	//int ret;
-	//struct xradio_common *hw_priv = seq->private;
+	//struct cw1200_common *hw_priv = seq->private;
 
 	seq_printf(seq, "\nRateMap for Tx & RX:\n");
 #define PUT_RATE_COUNT(name,idx) \
@@ -460,24 +460,24 @@ static int xradio_ratemap_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_ratemap_open(struct inode *inode, struct file *file)
+static int cw1200_ratemap_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_ratemap_show,
+	return single_open(file, &cw1200_ratemap_show,
 		inode->i_private);
 }
 
 static const struct file_operations fops_ratemap= {
-	.open = xradio_ratemap_open,
+	.open = cw1200_ratemap_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
 };
 
-static int xradio_ampducounters_show(struct seq_file *seq, void *v)
+static int cw1200_ampducounters_show(struct seq_file *seq, void *v)
 {
 	int ret;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	struct wsm_ampducounters_table counters;
 
 	ret = wsm_get_ampducounters_table(hw_priv, &counters);
@@ -508,24 +508,24 @@ static int xradio_ampducounters_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_ampducounters_open(struct inode *inode, struct file *file)
+static int cw1200_ampducounters_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_ampducounters_show,
+	return single_open(file, &cw1200_ampducounters_show,
 		inode->i_private);
 }
 
 static const struct file_operations fops_ampducounters = {
-	.open = xradio_ampducounters_open,
+	.open = cw1200_ampducounters_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
 };
 
-static int xradio_txpipe_show(struct seq_file *seq, void *v)
+static int cw1200_txpipe_show(struct seq_file *seq, void *v)
 {
 	int ret;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	struct wsm_txpipe_counter counters;
 
 	ret = wsm_get_txpipe_table(hw_priv, &counters);
@@ -555,21 +555,21 @@ static int xradio_txpipe_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_txpipe_open(struct inode *inode, struct file *file)
+static int cw1200_txpipe_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_txpipe_show,
+	return single_open(file, &cw1200_txpipe_show,
 		inode->i_private);
 }
 
 static const struct file_operations fops_txpipe = {
-	.open = xradio_txpipe_open,
+	.open = cw1200_txpipe_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
 };
 static int count_idx=0;
-static int xradio_dbgstats_show(struct seq_file *seq, void *v)
+static int cw1200_dbgstats_show(struct seq_file *seq, void *v)
 {
 	int ret;
 	int avg_ampdu_len=0;
@@ -580,7 +580,7 @@ static int xradio_dbgstats_show(struct seq_file *seq, void *v)
 	int Retry1_ratio=0;
 	int Retry2_ratio=0;
 	int Retry3_ratio=0;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 	struct wsm_counters_table counters;
 	struct wsm_ampducounters_table ampdu_counters;
 	struct wsm_txpipe_counter txpipe;
@@ -682,39 +682,39 @@ static int xradio_dbgstats_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_dbgstats_open(struct inode *inode, struct file *file)
+static int cw1200_dbgstats_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_dbgstats_show, inode->i_private);
+	return single_open(file, &cw1200_dbgstats_show, inode->i_private);
 }
 
 static const struct file_operations fops_dbgstats = {
-	.open = xradio_dbgstats_open,
+	.open = cw1200_dbgstats_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 	.owner = THIS_MODULE,
 };
 
-static int xradio_generic_open(struct inode *inode, struct file *file)
+static int cw1200_generic_open(struct inode *inode, struct file *file)
 {
 	file->private_data = inode->i_private;
 	return 0;
 }
 
-static ssize_t xradio_11n_read(struct file *file,
+static ssize_t cw1200_11n_read(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	struct ieee80211_supported_band *band =
 		hw_priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ];
 	return simple_read_from_buffer(user_buf, count, ppos, 
 	                               band->ht_cap.ht_supported ? "1\n" : "0\n", 2);
 }
 
-static ssize_t xradio_11n_write(struct file *file,
+static ssize_t cw1200_11n_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	struct ieee80211_supported_band *band[2] = {
 		hw_priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ],
 		hw_priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ],
@@ -738,19 +738,19 @@ static ssize_t xradio_11n_write(struct file *file,
 }
 
 static const struct file_operations fops_11n = {
-	.open = xradio_generic_open,
-	.read = xradio_11n_read,
-	.write = xradio_11n_write,
+	.open = cw1200_generic_open,
+	.read = cw1200_11n_read,
+	.write = cw1200_11n_write,
 	.llseek = default_llseek,
 };
 
 
 static u32 fwdbg_ctrl;
 
-static ssize_t xradio_fwdbg_write(struct file *file,
+static ssize_t cw1200_fwdbg_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[12] = {0};
 	char* endptr = NULL;
 
@@ -761,16 +761,16 @@ static ssize_t xradio_fwdbg_write(struct file *file,
 	if (copy_from_user(buf, user_buf, count))
 		return -EFAULT;
 	fwdbg_ctrl = simple_strtoul(buf, &endptr, 16);
-	xradio_dbg(XRADIO_DBG_ALWY,"fwdbg_ctrl = %d\n", fwdbg_ctrl);
+	cw1200_dbg(XRADIO_DBG_ALWY,"fwdbg_ctrl = %d\n", fwdbg_ctrl);
 	SYS_WARN(wsm_set_fw_debug_control(hw_priv, fwdbg_ctrl, 0));
 
 	return count;
 }
 
-static ssize_t xradio_fwdbg_read(struct file *file,
+static ssize_t cw1200_fwdbg_read(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[50];
 	size_t size = 0;
 
@@ -780,17 +780,17 @@ static ssize_t xradio_fwdbg_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 static const struct file_operations fops_fwdbg = {
-	.open = xradio_generic_open,
-	.write = xradio_fwdbg_write,
-	.read = xradio_fwdbg_read,
+	.open = cw1200_generic_open,
+	.write = cw1200_fwdbg_write,
+	.read = cw1200_fwdbg_read,
 	.llseek = default_llseek,
 };
 
 //add by yangfh for read/write fw registers
-static ssize_t xradio_fwreg_rw(struct file *file,
+static ssize_t cw1200_fwreg_rw(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char  buf[256] = {0};
 	u16   buf_size = (count > 255 ? 255 : count);
 	char* startptr = &buf[0];
@@ -818,7 +818,7 @@ static ssize_t xradio_fwreg_rw(struct file *file,
 			startptr = endptr+1;
 		}
 		if(i) reg_w.data_size = 4+i*8;
-		xradio_dbg(XRADIO_DBG_ALWY,"W:flag=0x%x, size=%d\n", reg_w.flag, reg_w.data_size);
+		cw1200_dbg(XRADIO_DBG_ALWY,"W:flag=0x%x, size=%d\n", reg_w.flag, reg_w.data_size);
 		wsm_write_mib(hw_priv, WSM_MIB_ID_RW_FW_REG, (void*)&reg_w, reg_w.data_size, 0);
 		
 	} else {  //read
@@ -836,33 +836,33 @@ static ssize_t xradio_fwreg_rw(struct file *file,
 		wsm_read_mib(hw_priv, WSM_MIB_ID_RW_FW_REG, (void*)&reg_r, 
 		             sizeof(WSM_REG_R), reg_r.data_size);
 		
-		xradio_dbg(XRADIO_DBG_ALWY,"R:flag=0x%x, size=%d\n", reg_r.flag, reg_r.data_size);
+		cw1200_dbg(XRADIO_DBG_ALWY,"R:flag=0x%x, size=%d\n", reg_r.flag, reg_r.data_size);
 		
 		end = (reg_r.data_size>>2)-1;
 		if(!end || !(reg_r.flag & WSM_REG_RET_F)) 
 			return count;
 			
 		for(i=0; i<end; i++) {
-			xradio_dbg(XRADIO_DBG_ALWY,"0x%08x ", reg_r.arg[i]);
-			if((i&3) == 3) xradio_dbg(XRADIO_DBG_ALWY,"\n");
+			cw1200_dbg(XRADIO_DBG_ALWY,"0x%08x ", reg_r.arg[i]);
+			if((i&3) == 3) cw1200_dbg(XRADIO_DBG_ALWY,"\n");
 		}
-		xradio_dbg(XRADIO_DBG_ALWY,"\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"\n");
 	} 
 	return count;
 }
 static const struct file_operations fops_rw_fwreg = {
-	.open = xradio_generic_open,
-	.write = xradio_fwreg_rw,
+	.open = cw1200_generic_open,
+	.write = cw1200_fwreg_rw,
 	.llseek = default_llseek,
 };
 
 /* This ops only used in bh error occured already.
  * It can be dangerous to use it in normal status. */
-static ssize_t xradio_fwreg_rw_direct(struct file *file,
+static ssize_t cw1200_fwreg_rw_direct(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	//for H64 HIF test
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char  buf[256] = {0};
 	u16   buf_size = (count > 255 ? 255 : count);
 	char* startptr = &buf[0];
@@ -893,29 +893,29 @@ static ssize_t xradio_fwreg_rw_direct(struct file *file,
 		}
 
 		//change to direct mode
-		ret = xradio_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+		ret = cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
 		if (ret < 0) {
-			xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
+			cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
 			           "reading CONFIG err, ret is %d! \n", __func__, ret);
 		}
-		ret = xradio_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
+		ret = cw1200_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
 		                          val32 | HIF_CONFIG_ACCESS_MODE_BIT);
 		if (ret < 0) {
-			xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
+			cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
 			           "setting direct mode err, ret is %d! \n", __func__, ret);
 		}
 
-		ret = xradio_ahb_write_32(hw_priv,reg_w.arg[0].reg_addr, reg_w.arg[0].reg_val);
+		ret = cw1200_ahb_write_32(hw_priv,reg_w.arg[0].reg_addr, reg_w.arg[0].reg_val);
 		if (ret < 0) {
-			xradio_dbg(XRADIO_DBG_ERROR, "%s:AHB write test, val of addr %x is %x! \n", 
+			cw1200_dbg(XRADIO_DBG_ERROR, "%s:AHB write test, val of addr %x is %x! \n", 
 			           __func__, reg_w.arg[0].reg_addr, reg_w.arg[0].reg_val);
 		}
 
 		//return to queue mode
-		ret = xradio_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
+		ret = cw1200_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
 		                          val32 & ~HIF_CONFIG_ACCESS_MODE_BIT);
 		if (ret < 0) {
-			xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
+			cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
 			           "setting queue mode err, ret is %d! \n", __func__,ret);
 		}
 	} else {  //read
@@ -933,50 +933,50 @@ static ssize_t xradio_fwreg_rw_direct(struct file *file,
 		}
 		//if(i) reg_r.data_size = 4+i*4;
 		if (!(reg_r.arg[0] & 0xffff0000)) { // means read register
-			ret = xradio_reg_read_32(hw_priv, (u16)reg_r.arg[0], &val32);
+			ret = cw1200_reg_read_32(hw_priv, (u16)reg_r.arg[0], &val32);
 			if (ret < 0) {
-				xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W [register]-- " \
+				cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W [register]-- " \
 				           "reading CONFIG err, ret is %d! \n", __func__,ret);
 			}
-			xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W [register]]-- " \
+			cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W [register]]-- " \
 			           "reading  register @0x%x,val is 0x%x\n", 
 			           __func__, reg_r.arg[0], val32);
 		} else { //means read memory 
 
 			//change to direct mode
-			ret = xradio_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+			ret = cw1200_reg_read_32(hw_priv, HIF_CONFIG_REG_ID, &val32);
 			if (ret < 0) {
-				xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
+				cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
 				           "reading CONFIG err, ret is %d! \n", __func__,ret);
 			}
-			ret = xradio_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
+			ret = cw1200_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
 			                           val32 | HIF_CONFIG_ACCESS_MODE_BIT);
 			if (ret < 0) {
-				xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
+				cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
 				           "setting direct mode err, ret is %d! \n", __func__,ret);
 			}
 
 			if (reg_r.arg[0] & 0x08000000) {
-				ret = xradio_ahb_read_32(hw_priv,reg_r.arg[0], &mem_val);
+				ret = cw1200_ahb_read_32(hw_priv,reg_r.arg[0], &mem_val);
 				if (ret < 0) {
-					xradio_dbg(XRADIO_DBG_ERROR, "%s:AHB read test err, " \
+					cw1200_dbg(XRADIO_DBG_ERROR, "%s:AHB read test err, " \
 					           "val of addr %08x is %08x \n", __func__,reg_r.arg[0],mem_val);
 				}
-				xradio_dbg(XRADIO_DBG_ALWY, "[%08x] = 0x%08x\n", reg_r.arg[0], mem_val);
+				cw1200_dbg(XRADIO_DBG_ALWY, "[%08x] = 0x%08x\n", reg_r.arg[0], mem_val);
 			} else if(reg_r.arg[0] & 0x09000000) {
-				ret = xradio_apb_read_32(hw_priv,reg_r.arg[0], &mem_val);
+				ret = cw1200_apb_read_32(hw_priv,reg_r.arg[0], &mem_val);
 				if (ret < 0) {
-					xradio_dbg(XRADIO_DBG_ERROR, "%s:APB read test err, " \
+					cw1200_dbg(XRADIO_DBG_ERROR, "%s:APB read test err, " \
 					           "val of addr %08x is %08x \n", __func__,reg_r.arg[0],mem_val);
 				}
-				xradio_dbg(XRADIO_DBG_ALWY, "[%08x] = 0x%08x\n", reg_r.arg[0], mem_val);
+				cw1200_dbg(XRADIO_DBG_ALWY, "[%08x] = 0x%08x\n", reg_r.arg[0], mem_val);
 			}
 
 			//return to queue mode
-			ret = xradio_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
+			ret = cw1200_reg_write_32(hw_priv, HIF_CONFIG_REG_ID,
 			                          val32 & ~HIF_CONFIG_ACCESS_MODE_BIT);
 			if (ret < 0) {
-				xradio_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
+				cw1200_dbg(XRADIO_DBG_ERROR, "%s:test HIF R/W -- " \
 				           "setting queue mode err, ret is %d! \n", __func__,ret);
 			}
 		}
@@ -984,16 +984,16 @@ static ssize_t xradio_fwreg_rw_direct(struct file *file,
 	return count;
 }
 static const struct file_operations fops_rw_fwreg_direct = {
-	.open = xradio_generic_open,
-	.write = xradio_fwreg_rw_direct,
+	.open = cw1200_generic_open,
+	.write = cw1200_fwreg_rw_direct,
 	.llseek = default_llseek,
 };
 //add by yangfh for setting ampdu_len
 u16 ampdu_len[2] = {16,16};
-static ssize_t xradio_ampdu_len_write(struct file *file,
+static ssize_t cw1200_ampdu_len_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[12] = {0};
 	char* endptr = NULL;
 	u8 if_id = 0;
@@ -1007,16 +1007,16 @@ static ssize_t xradio_ampdu_len_write(struct file *file,
 	if_id = (simple_strtoul(buf, &endptr, 10) == 0);
 	ampdu_len[if_id] = simple_strtoul(endptr+1, NULL, 10);
 	
-	xradio_dbg(XRADIO_DBG_ALWY,"vif=%d, ampdu_len = %d\n", if_id, ampdu_len[if_id]);
+	cw1200_dbg(XRADIO_DBG_ALWY,"vif=%d, ampdu_len = %d\n", if_id, ampdu_len[if_id]);
 	wsm_write_mib(hw_priv, WSM_MIB_ID_SET_AMPDU_NUM, &ampdu_len[if_id], sizeof(u16), if_id);
 
 	return count;
 }
 
-static ssize_t xradio_ampdu_len_read(struct file *file,
+static ssize_t cw1200_ampdu_len_read(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 
@@ -1027,19 +1027,19 @@ static ssize_t xradio_ampdu_len_read(struct file *file,
 }
 
 static const struct file_operations fops_ampdu_len = {
-	.open = xradio_generic_open,
-	.write = xradio_ampdu_len_write,
-	.read = xradio_ampdu_len_read,
+	.open = cw1200_generic_open,
+	.write = cw1200_ampdu_len_write,
+	.read = cw1200_ampdu_len_read,
 	.llseek = default_llseek,
 };
 
 
 //add by yangfh for setting rts threshold.
 u32 rts_threshold[2] = {3000, 3000};
-static ssize_t xradio_rts_threshold_get(struct file *file,
+static ssize_t cw1200_rts_threshold_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 
@@ -1049,10 +1049,10 @@ static ssize_t xradio_rts_threshold_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_rts_threshold_set(struct file *file,
+static ssize_t cw1200_rts_threshold_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[10] = {0};
 	char* endptr = NULL;
 	u8 if_id = 0;
@@ -1065,25 +1065,25 @@ static ssize_t xradio_rts_threshold_set(struct file *file,
 	if_id = simple_strtoul(buf, &endptr, 10);
 	rts_threshold[if_id] = simple_strtoul(endptr+1, NULL, 10);
 	
-	xradio_dbg(XRADIO_DBG_ALWY,"vif=%d, rts_threshold = %d\n", if_id, rts_threshold[if_id]);
+	cw1200_dbg(XRADIO_DBG_ALWY,"vif=%d, rts_threshold = %d\n", if_id, rts_threshold[if_id]);
 	wsm_write_mib(hw_priv, WSM_MIB_ID_DOT11_RTS_THRESHOLD, &rts_threshold[if_id], sizeof(u32), if_id);
 
 	return count;
 }
 
 static const struct file_operations fops_rts_threshold = {
-	.open = xradio_generic_open,
-	.write = xradio_rts_threshold_set,
-	.read = xradio_rts_threshold_get,
+	.open = cw1200_generic_open,
+	.write = cw1200_rts_threshold_set,
+	.read = cw1200_rts_threshold_get,
 	.llseek = default_llseek,
 };
 
 //add by yangfh for disable low power mode.
 u8 low_pwr_disable = 0;
-static ssize_t xradio_low_pwr_get(struct file *file,
+static ssize_t cw1200_low_pwr_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 
@@ -1093,10 +1093,10 @@ static ssize_t xradio_low_pwr_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_low_pwr_set(struct file *file,
+static ssize_t cw1200_low_pwr_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[12] = {0};
 	char* endptr = NULL;
 	int if_id=0;
@@ -1108,7 +1108,7 @@ static ssize_t xradio_low_pwr_set(struct file *file,
 	if (copy_from_user(buf, user_buf, count))
 		return -EFAULT;
 	low_pwr_disable = simple_strtoul(buf, &endptr, 16);
-	xradio_dbg(XRADIO_DBG_ALWY,"low_pwr_disable=%d\n", low_pwr_disable);
+	cw1200_dbg(XRADIO_DBG_ALWY,"low_pwr_disable=%d\n", low_pwr_disable);
 	
 	if(low_pwr_disable)
 		val = wsm_power_mode_active;
@@ -1123,17 +1123,17 @@ static ssize_t xradio_low_pwr_set(struct file *file,
 }
 
 static const struct file_operations fops_low_pwr = {
-	.open   = xradio_generic_open,
-	.write  = xradio_low_pwr_set,
-	.read   = xradio_low_pwr_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_low_pwr_set,
+	.read   = cw1200_low_pwr_get,
 	.llseek = default_llseek,
 };
 
 //add by yangfh for disable ps mode(80211 protol).
-static ssize_t xradio_ps_get(struct file *file,
+static ssize_t cw1200_ps_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 
@@ -1144,10 +1144,10 @@ static ssize_t xradio_ps_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_ps_set(struct file *file,
+static ssize_t cw1200_ps_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[20] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
@@ -1170,7 +1170,7 @@ static ssize_t xradio_ps_set(struct file *file,
 	if(start < buf+count)
 			ps_changeperiod = simple_strtoul(start, &endptr, 10)&0xff;
 
-	xradio_dbg(XRADIO_DBG_ALWY,"ps_disable=%d, idleperiod=%d, changeperiod=%d\n",
+	cw1200_dbg(XRADIO_DBG_ALWY,"ps_disable=%d, idleperiod=%d, changeperiod=%d\n",
 	           ps_disable, ps_idleperiod, ps_changeperiod);
 	
 	//set pm for debug 
@@ -1189,9 +1189,9 @@ static ssize_t xradio_ps_set(struct file *file,
 }
 
 static const struct file_operations fops_ps_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_ps_set,
-	.read   = xradio_ps_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_ps_set,
+	.read   = cw1200_ps_get,
 	.llseek = default_llseek,
 };
 
@@ -1200,10 +1200,10 @@ u8 retry_dbg = 0;
 u8 tx_short=0;   //save orgin value.
 u8 tx_long=0;    //save orgin value.
 
-static ssize_t xradio_retry_get(struct file *file,
+static ssize_t cw1200_retry_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 
@@ -1215,10 +1215,10 @@ static ssize_t xradio_retry_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_retry_set(struct file *file,
+static ssize_t cw1200_retry_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[20] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
@@ -1241,7 +1241,7 @@ static ssize_t xradio_retry_set(struct file *file,
 			if(start < buf+count)
 				hw_priv->long_frame_max_tx_count = simple_strtoul(start, &endptr, 10)&0xf;
 		}
-		xradio_dbg(XRADIO_DBG_ALWY,"retry_dbg on, s=%d, l=%d\n", 
+		cw1200_dbg(XRADIO_DBG_ALWY,"retry_dbg on, s=%d, l=%d\n", 
 		          hw_priv->short_frame_max_tx_count, 
 		          hw_priv->long_frame_max_tx_count);
 	} else {  //restore retry.
@@ -1253,7 +1253,7 @@ static ssize_t xradio_retry_set(struct file *file,
 			hw_priv->long_frame_max_tx_count = tx_long;
 			tx_long = 0;
 		}
-		xradio_dbg(XRADIO_DBG_ALWY,"retry_dbg off, s=%d, l=%d\n", 
+		cw1200_dbg(XRADIO_DBG_ALWY,"retry_dbg off, s=%d, l=%d\n", 
 		          hw_priv->short_frame_max_tx_count, 
 		          hw_priv->long_frame_max_tx_count);
 	}
@@ -1262,9 +1262,9 @@ static ssize_t xradio_retry_set(struct file *file,
 }
 
 static const struct file_operations fops_retry_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_retry_set,
-	.read   = xradio_retry_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_retry_set,
+	.read   = cw1200_retry_get,
 	.llseek = default_llseek,
 };
 
@@ -1273,10 +1273,10 @@ u8  rates_dbg_en = 0;
 u32 rates_debug[3] = {0};
 u8  maxRate_dbg = 0;
 
-static ssize_t xradio_rates_get(struct file *file,
+static ssize_t cw1200_rates_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 	sprintf(buf, "rates_dbg_en=%d, [0]=0x%08x, [1]=0x%08x, [2]=0x%08x\n", 
@@ -1286,10 +1286,10 @@ static ssize_t xradio_rates_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_rates_set(struct file *file,
+static ssize_t cw1200_rates_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[50] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
@@ -1323,20 +1323,20 @@ static ssize_t xradio_rates_set(struct file *file,
 			}
 		}
 		if (rates_dbg_en & 0x1) {
-			xradio_dbg(XRADIO_DBG_ALWY,"rates_dbg on, maxrate=%d!\n", maxRate_dbg);
+			cw1200_dbg(XRADIO_DBG_ALWY,"rates_dbg on, maxrate=%d!\n", maxRate_dbg);
 		} else {
-			xradio_dbg(XRADIO_DBG_ALWY,"rates_dbg fail, invaid params!\n");
+			cw1200_dbg(XRADIO_DBG_ALWY,"rates_dbg fail, invaid params!\n");
 		}
 	} else {
-		xradio_dbg(XRADIO_DBG_ALWY,"rates_dbg off\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"rates_dbg off\n");
 	}
 	return count;
 }
 
 static const struct file_operations fops_rates_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_rates_set,
-	.read   = xradio_rates_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_rates_set,
+	.read   = cw1200_rates_get,
 	.llseek = default_llseek,
 };
 
@@ -1344,10 +1344,10 @@ static const struct file_operations fops_rates_ctrl = {
 //add by huanglu for backoff setting.
 struct wsm_backoff_ctrl backoff_ctrl;
 
-static ssize_t xradio_backoff_ctrl_get(struct file *file,
+static ssize_t cw1200_backoff_ctrl_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 	sprintf(buf, "backoff_ctrl_en=%d, min=%d, max=%d\n", 
@@ -1359,10 +1359,10 @@ static ssize_t xradio_backoff_ctrl_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_backoff_ctrl_set(struct file *file,
+static ssize_t cw1200_backoff_ctrl_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[20] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
@@ -1381,28 +1381,28 @@ static ssize_t xradio_backoff_ctrl_set(struct file *file,
     	if(start < buf+count) 
     		backoff_ctrl.max = simple_strtoul(start, &endptr, 10);
 
-		xradio_dbg(XRADIO_DBG_ALWY,"backoff_ctrl on\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"backoff_ctrl on\n");
 	} else {
-		xradio_dbg(XRADIO_DBG_ALWY,"backoff_ctrl off\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"backoff_ctrl off\n");
 	}
 	wsm_set_backoff_ctrl(hw_priv, &backoff_ctrl);
 	return count;
 }
 
 static const struct file_operations fops_backoff_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_backoff_ctrl_set,
-	.read   = xradio_backoff_ctrl_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_backoff_ctrl_set,
+	.read   = cw1200_backoff_ctrl_get,
 	.llseek = default_llseek,
 };
 
 //========
 //add by huanglu for TALA(Tx-Ampdu-Len-Adaption) setting.
 struct wsm_tala_para tala_para;
-static ssize_t xradio_tala_get(struct file *file,
+static ssize_t cw1200_tala_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 	sprintf(buf, "tala_para=0x%08x, tala_thresh=0x%08x\n", 
@@ -1412,10 +1412,10 @@ static ssize_t xradio_tala_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_tala_set(struct file *file,
+static ssize_t cw1200_tala_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[30] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
@@ -1437,9 +1437,9 @@ static ssize_t xradio_tala_set(struct file *file,
 }
 
 static const struct file_operations fops_tala_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_tala_set,
-	.read   = xradio_tala_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_tala_set,
+	.read   = cw1200_tala_get,
 	.llseek = default_llseek,
 };
 
@@ -1461,10 +1461,10 @@ struct _TX_PWR_SHOW {
 	u16 reserved;
 	PWR_CTRL_TBL table[16];
 } pwr_ctrl;
-static ssize_t xradio_tx_pwr_show(struct file *file,
+static ssize_t cw1200_tx_pwr_show(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	
 	int pos = 0, i = 0;
 	pwr_ctrl.InfoID = 0x1;
@@ -1482,17 +1482,17 @@ static ssize_t xradio_tx_pwr_show(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf_show, pos);
 }
 
-static ssize_t xradio_tx_pwr_set(struct file *file,
+static ssize_t cw1200_tx_pwr_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	return count;
 }
 
 static const struct file_operations fops_tx_pwr_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_tx_pwr_set,
-	.read   = xradio_tx_pwr_show,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_tx_pwr_set,
+	.read   = cw1200_tx_pwr_show,
 	.llseek = default_llseek,
 };
 
@@ -1567,10 +1567,10 @@ struct _TPA_INFO {
 		PWR_MODULN moduln[MODULN_NUM];
 	} u;
 } tpa_info;
-static ssize_t xradio_tpa_ctrl_get(struct file *file,
+static ssize_t cw1200_tpa_ctrl_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	int pos = 0, i = 0;
 	memset(&tpa_info, 0, sizeof(tpa_info));
 	tpa_info.InfoID = 0x03;
@@ -1614,10 +1614,10 @@ struct TPA_CONTROL_SET {
 	u8      thresh_def_lstn;
 	u8      thresh_stable;
 } tpa_ctrl_set;
-static ssize_t xradio_tpa_ctrl_set(struct file *file,
+static ssize_t cw1200_tpa_ctrl_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char  buffer[256] = {0};
 	char  *buf = &buffer[0];
 	u16   buf_size = (count > 255 ? 255 : count);
@@ -1669,17 +1669,17 @@ static ssize_t xradio_tpa_ctrl_set(struct file *file,
 	return count;
 }
 static const struct file_operations fops_tpa_ctrl = {
-	.open   = xradio_generic_open,
-	.write  = xradio_tpa_ctrl_set,
-	.read   = xradio_tpa_ctrl_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_tpa_ctrl_set,
+	.read   = cw1200_tpa_ctrl_get,
 	.llseek = default_llseek,
 };
 
 u8 tpa_node_dbg = 0;
-static int xradio_tpa_debug(struct seq_file *seq, void *v)
+static int cw1200_tpa_debug(struct seq_file *seq, void *v)
 {
 	int ret, i;
-	struct xradio_common *hw_priv = seq->private;
+	struct cw1200_common *hw_priv = seq->private;
 
 #define PUT_TPA_MODULN(tab, name) \
 	seq_printf(seq, tab":\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", \
@@ -1807,14 +1807,14 @@ static int xradio_tpa_debug(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_tpa_debug_open(struct inode *inode, struct file *file)
+static int cw1200_tpa_debug_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_tpa_debug,
+	return single_open(file, &cw1200_tpa_debug,
 		inode->i_private);
 }
 
 static const struct file_operations fops_tpa_debug = {
-	.open = xradio_tpa_debug_open,
+	.open = cw1200_tpa_debug_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -1829,10 +1829,10 @@ int    retry_mis      = 0;
 u32    policy_upload  = 0;
 u32    policy_num     = 0;
 
-static ssize_t xradio_policy_info(struct file *file,
+static ssize_t cw1200_policy_info(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[256];
 	size_t size = 0;
 	sprintf(buf, "tx_retrylimit=%d, tx_lower_limit=%d, tx_over_limit=%d, retry_mis=%d\n" \
@@ -1853,8 +1853,8 @@ static ssize_t xradio_policy_info(struct file *file,
 }
 
 static const struct file_operations fops_policy_info = {
-	.open   = xradio_generic_open,
-	.read   = xradio_policy_info,
+	.open   = cw1200_generic_open,
+	.read   = cw1200_policy_info,
 	.llseek = default_llseek,
 };
 
@@ -1866,10 +1866,10 @@ u32 next_rx_cnt  = 0;
 u32 rx_total_cnt = 0;
 u32 tx_total_cnt = 0;
 
-static ssize_t xradio_bh_statistic(struct file *file,
+static ssize_t cw1200_bh_statistic(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[256];
 	size_t size = 0;
 	sprintf(buf, "irq_count=%d, rx_total=%d, miss=%d, fix=%d, next=%d, "
@@ -1890,18 +1890,18 @@ static ssize_t xradio_bh_statistic(struct file *file,
 }
 
 static const struct file_operations fops_bh_stat = {
-	.open   = xradio_generic_open,
-	.read   = xradio_bh_statistic,
+	.open   = cw1200_generic_open,
+	.read   = cw1200_bh_statistic,
 	.llseek = default_llseek,
 };
 
 //add by yangfh for disable low power mode.
 extern u16 txparse_flags;
 extern u16 rxparse_flags;
-static ssize_t xradio_parse_flags_get(struct file *file,
+static ssize_t cw1200_parse_flags_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 
@@ -1911,10 +1911,10 @@ static ssize_t xradio_parse_flags_get(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_parse_flags_set(struct file *file,
+static ssize_t cw1200_parse_flags_set(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[30] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
@@ -1934,15 +1934,15 @@ static ssize_t xradio_parse_flags_set(struct file *file,
 	txparse_flags &= 0x7fff;
 	rxparse_flags &= 0x7fff;
 	
-	xradio_dbg(XRADIO_DBG_ALWY, "txparse=0x%04x, rxparse=0x%04x\n", 
+	cw1200_dbg(XRADIO_DBG_ALWY, "txparse=0x%04x, rxparse=0x%04x\n", 
 	           txparse_flags, rxparse_flags);	
 	return count;
 }
 
 static const struct file_operations fops_parse_flags = {
-	.open   = xradio_generic_open,
-	.write  = xradio_parse_flags_set,
-	.read   = xradio_parse_flags_get,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_parse_flags_set,
+	.read   = cw1200_parse_flags_get,
 	.llseek = default_llseek,
 };
 
@@ -1955,20 +1955,20 @@ u16 hwt_tx_len = 0;  //
 u16 hwt_tx_num = 0;  //
 struct timeval hwt_start_time = {0};
 struct timeval hwt_end_time   = {0};
-int wsm_hwt_cmd(struct xradio_common *hw_priv, void *arg, 
+int wsm_hwt_cmd(struct cw1200_common *hw_priv, void *arg, 
                 size_t arg_size);
 
-static ssize_t xradio_hwt_hif_tx(struct file *file,
+static ssize_t cw1200_hwt_hif_tx(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[100] = {0};
 	char* start  = &buf[0];
 	char* endptr = NULL;
 	u8   test_en = 0;
 	
 	if (hwt_testing) {
-		xradio_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
 		return count;
 	}
 
@@ -1993,7 +1993,7 @@ static ssize_t xradio_hwt_hif_tx(struct file *file,
 	} else {
 		hwt_tx_en = 0;
 	}
-	xradio_dbg(XRADIO_DBG_ALWY,"hwt_tx_en=%d, hwt_tx_len=%d, hwt_tx_num=%d, hwt_tx_cfm=%d\n",
+	cw1200_dbg(XRADIO_DBG_ALWY,"hwt_tx_en=%d, hwt_tx_len=%d, hwt_tx_num=%d, hwt_tx_cfm=%d\n",
 	           hwt_tx_en, hwt_tx_len, hwt_tx_num, hwt_tx_cfm);
 	
 	if (!hw_priv->bh_error && 
@@ -2002,8 +2002,8 @@ static ssize_t xradio_hwt_hif_tx(struct file *file,
 	return count;
 }
 static const struct file_operations fops_hwt_hif_tx = {
-	.open   = xradio_generic_open,
-	.write  = xradio_hwt_hif_tx,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_hwt_hif_tx,
 	.llseek = default_llseek,
 };
 
@@ -2011,10 +2011,10 @@ static const struct file_operations fops_hwt_hif_tx = {
 u8  hwt_rx_en  = 0;
 u16 hwt_rx_len = 0;   //
 u16 hwt_rx_num = 0;   //
-static ssize_t xradio_hwt_hif_rx(struct file *file,
+static ssize_t cw1200_hwt_hif_rx(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[100] = {0};
 	char* start   = &buf[0];
 	char* endptr  = NULL;
@@ -2022,7 +2022,7 @@ static ssize_t xradio_hwt_hif_rx(struct file *file,
 	struct wsm_buf *wsm_buf = &hw_priv->wsm_cmd_buf;
 	
 	if (hwt_testing) {
-		xradio_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
 		return count;
 	}
 	
@@ -2044,7 +2044,7 @@ static ssize_t xradio_hwt_hif_rx(struct file *file,
 	} else {
 		hwt_rx_en = 0;
 	}
-	xradio_dbg(XRADIO_DBG_ALWY,"hwt_rx_en=%d, hwt_rx_len=%d, hwt_rx_num=%d\n",
+	cw1200_dbg(XRADIO_DBG_ALWY,"hwt_rx_en=%d, hwt_rx_len=%d, hwt_rx_num=%d\n",
 	           hwt_rx_en, hwt_rx_len, hwt_rx_num);
 
 	//check the parameters.
@@ -2064,8 +2064,8 @@ static ssize_t xradio_hwt_hif_rx(struct file *file,
 	return count;
 }
 static const struct file_operations fops_hwt_hif_rx = {
-	.open   = xradio_generic_open,
-	.write  = xradio_hwt_hif_rx,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_hwt_hif_rx,
 	.llseek = default_llseek,
 };
 
@@ -2074,10 +2074,10 @@ u8  hwt_enc_type  = 0;
 u8  hwt_key_len = 0;   //
 u16 hwt_enc_len = 0;   //
 u16 hwt_enc_cnt = 0;   //
-static ssize_t xradio_hwt_enc(struct file *file,
+static ssize_t cw1200_hwt_enc(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[100] = {0};
 	char* start   = &buf[0];
 	char* endptr  = NULL;
@@ -2085,7 +2085,7 @@ static ssize_t xradio_hwt_enc(struct file *file,
 	struct wsm_buf *wsm_buf = &hw_priv->wsm_cmd_buf;
 	
 	if (hwt_testing) {
-		xradio_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
 		return count;
 	}
 
@@ -2106,7 +2106,7 @@ static ssize_t xradio_hwt_enc(struct file *file,
 	if(start < buf+count)
 		hwt_enc_cnt = simple_strtoul(start, &endptr, 10);
 
-	xradio_dbg(XRADIO_DBG_ALWY,"enc_type=%d, key_len=%d, enc_len=%d, enc_cnt=%d\n",
+	cw1200_dbg(XRADIO_DBG_ALWY,"enc_type=%d, key_len=%d, enc_len=%d, enc_cnt=%d\n",
 	           hwt_enc_type, hwt_key_len, hwt_enc_len, hwt_enc_cnt);
 
 	//check the parameters.
@@ -2125,18 +2125,18 @@ static ssize_t xradio_hwt_enc(struct file *file,
 	return count;
 }
 static const struct file_operations fops_hwt_enc = {
-	.open   = xradio_generic_open,
-	.write  = xradio_hwt_enc,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_hwt_enc,
 	.llseek = default_llseek,
 };
 
 //MIC test
 u16 hwt_mic_len = 0;   //
 u16 hwt_mic_cnt = 0;   //
-static ssize_t xradio_hwt_mic(struct file *file,
+static ssize_t cw1200_hwt_mic(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[100] = {0};
 	char* start   = &buf[0];
 	char* endptr  = NULL;
@@ -2144,7 +2144,7 @@ static ssize_t xradio_hwt_mic(struct file *file,
 	struct wsm_buf *wsm_buf = &hw_priv->wsm_cmd_buf;
 
 	if (hwt_testing) {
-		xradio_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
+		cw1200_dbg(XRADIO_DBG_ALWY,"cmd refuse, hwt is testing!\n");
 		return count;
 	}
 
@@ -2159,7 +2159,7 @@ static ssize_t xradio_hwt_mic(struct file *file,
 	if(start < buf+count)
 		hwt_mic_cnt = simple_strtoul(start, &endptr, 10);
 
-	xradio_dbg(XRADIO_DBG_ALWY,"mic_len=%d, mic_cnt=%d\n", hwt_mic_len, hwt_mic_cnt);
+	cw1200_dbg(XRADIO_DBG_ALWY,"mic_len=%d, mic_cnt=%d\n", hwt_mic_len, hwt_mic_cnt);
 
 	//check the parameters.
 	if (hwt_mic_len <= 1500 || hwt_mic_cnt > 0) {
@@ -2176,18 +2176,18 @@ static ssize_t xradio_hwt_mic(struct file *file,
 	return count;
 }
 static const struct file_operations fops_hwt_mic = {
-	.open   = xradio_generic_open,
-	.write  = xradio_hwt_mic,
+	.open   = cw1200_generic_open,
+	.write  = cw1200_hwt_mic,
 	.llseek = default_llseek,
 };
 #endif //DGB_XRADIO_HWT
 
 static u32 measure_type;
 
-static ssize_t xradio_measure_type_write(struct file *file,
+static ssize_t cw1200_measure_type_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[12] = {0};
 	char* endptr = NULL;
 	count = (count > 11 ? 11 : count);
@@ -2197,17 +2197,17 @@ static ssize_t xradio_measure_type_write(struct file *file,
 		return -EFAULT;
 	measure_type = simple_strtoul(buf, &endptr, 16);
 	
-	xradio_dbg(XRADIO_DBG_ALWY,"measure_type = %08x\n", measure_type);
+	cw1200_dbg(XRADIO_DBG_ALWY,"measure_type = %08x\n", measure_type);
 	SYS_WARN(wsm_11k_measure_requset(hw_priv, (measure_type&0xff),
                                            ((measure_type&0xff00)>>8),
                                            ((measure_type&0xffff0000)>>16)));
 	return count;
 }
 
-static ssize_t xradio_measure_type_read(struct file *file,
+static ssize_t cw1200_measure_type_read(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	//struct xradio_common *hw_priv = file->private_data;
+	//struct cw1200_common *hw_priv = file->private_data;
 	char buf[20];
 	size_t size = 0;
 
@@ -2217,17 +2217,17 @@ static ssize_t xradio_measure_type_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 static const struct file_operations fops_11k = {
-	.open = xradio_generic_open,
-	.write = xradio_measure_type_write,
-	.read = xradio_measure_type_read,
+	.open = cw1200_generic_open,
+	.write = cw1200_measure_type_write,
+	.read = cw1200_measure_type_read,
 	.llseek = default_llseek,
 };
 
 
-static ssize_t xradio_wsm_dumps(struct file *file,
+static ssize_t cw1200_wsm_dumps(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[1];
 
 	if (!count)
@@ -2244,15 +2244,15 @@ static ssize_t xradio_wsm_dumps(struct file *file,
 }
 
 static const struct file_operations fops_wsm_dumps = {
-	.open = xradio_generic_open,
-	.write = xradio_wsm_dumps,
+	.open = cw1200_generic_open,
+	.write = cw1200_wsm_dumps,
 	.llseek = default_llseek,
 };
 
-static ssize_t xradio_short_dump_read(struct file *file,
+static ssize_t cw1200_short_dump_read(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *hw_priv = file->private_data;
+	struct cw1200_common *hw_priv = file->private_data;
 	char buf[20];
 	size_t size = 0;
 
@@ -2262,10 +2262,10 @@ static ssize_t xradio_short_dump_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_short_dump_write(struct file *file,
+static ssize_t cw1200_short_dump_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_common *priv = file->private_data;
+	struct cw1200_common *priv = file->private_data;
 	char buf[20];
 	unsigned long dump_size = 0;
 
@@ -2276,7 +2276,7 @@ static ssize_t xradio_short_dump_write(struct file *file,
 
 	if (kstrtoul(buf, 10, &dump_size))
 		return -EINVAL;
-	xradio_dbg(XRADIO_DBG_ALWY,"%s get %lu\n", __func__, dump_size);
+	cw1200_dbg(XRADIO_DBG_ALWY,"%s get %lu\n", __func__, dump_size);
 
 	priv->wsm_dump_max_size = dump_size;
 
@@ -2284,24 +2284,24 @@ static ssize_t xradio_short_dump_write(struct file *file,
 }
 
 static const struct file_operations fops_short_dump = {
-	.open = xradio_generic_open,
-	.write = xradio_short_dump_write,
-	.read = xradio_short_dump_read,
+	.open = cw1200_generic_open,
+	.write = cw1200_short_dump_write,
+	.read = cw1200_short_dump_read,
 	.llseek = default_llseek,
 };
 
 
-static int xradio_status_show_priv(struct seq_file *seq, void *v)
+static int cw1200_status_show_priv(struct seq_file *seq, void *v)
 {
 	int i;
-	struct xradio_vif *priv = seq->private;
-	struct xradio_debug_priv *d = priv->debug;
+	struct cw1200_vif *priv = seq->private;
+	struct cw1200_debug_priv *d = priv->debug;
 
 	seq_printf(seq, "Mode:       %s%s\n",
-		xradio_debug_mode(priv->mode),
+		cw1200_debug_mode(priv->mode),
 		priv->listening ? " (listening)" : "");
 	seq_printf(seq, "Assoc:      %s\n",
-		xradio_debug_join_status[priv->join_status]);
+		cw1200_debug_join_status[priv->join_status]);
 	if (priv->rx_filter.promiscuous)
 		seq_puts(seq,   "Filter:     promisc\n");
 	else if (priv->rx_filter.fcs)
@@ -2349,7 +2349,7 @@ static int xradio_status_show_priv(struct seq_file *seq, void *v)
 			break;
 		}
 		seq_printf(seq, "Preamble:   %s\n",
-			xradio_debug_preamble[
+			cw1200_debug_preamble[
 			priv->association_mode.preambleType]);
 		seq_printf(seq, "AMPDU spcn: %d\n",
 			priv->association_mode.mpduStartSpacing);
@@ -2374,11 +2374,11 @@ static int xradio_status_show_priv(struct seq_file *seq, void *v)
 	seq_printf(seq, "Bcnloss:    %d\n",
 		priv->cqm_beacon_loss_count);
 
-	xradio_debug_print_map(seq, priv, "Link map:   ",
+	cw1200_debug_print_map(seq, priv, "Link map:   ",
 		priv->link_id_map);
-	xradio_debug_print_map(seq, priv, "Asleep map: ",
+	cw1200_debug_print_map(seq, priv, "Asleep map: ",
 		priv->sta_asleep_mask);
-	xradio_debug_print_map(seq, priv, "PSPOLL map: ",
+	cw1200_debug_print_map(seq, priv, "PSPOLL map: ",
 		priv->pspoll_mask);
 
 	seq_puts(seq, "\n");
@@ -2386,7 +2386,7 @@ static int xradio_status_show_priv(struct seq_file *seq, void *v)
 	for (i = 0; i < MAX_STA_IN_AP_MODE; ++i) {
 		if (priv->link_id_db[i].status) {
 			seq_printf(seq, "Link %d:     %s, %pM\n",
-				i + 1, xradio_debug_link_id[
+				i + 1, cw1200_debug_link_id[
 				priv->link_id_db[i].status],
 				priv->link_id_db[i].mac);
 		}
@@ -2414,14 +2414,14 @@ static int xradio_status_show_priv(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int xradio_status_open_priv(struct inode *inode, struct file *file)
+static int cw1200_status_open_priv(struct inode *inode, struct file *file)
 {
-	return single_open(file, &xradio_status_show_priv,
+	return single_open(file, &cw1200_status_show_priv,
 		inode->i_private);
 }
 
 static const struct file_operations fops_status_priv = {
-	.open = xradio_status_open_priv,
+	.open = cw1200_status_open_priv,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -2430,11 +2430,11 @@ static const struct file_operations fops_status_priv = {
 
 #if defined(CONFIG_XRADIO_USE_EXTENSIONS)
 
-static ssize_t xradio_hang_write(struct file *file,
+static ssize_t cw1200_hang_write(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_vif *priv = file->private_data;
-	struct xradio_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct cw1200_vif *priv = file->private_data;
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
 	char buf[1];
 
 	if (!count)
@@ -2443,7 +2443,7 @@ static ssize_t xradio_hang_write(struct file *file,
 		return -EFAULT;
 
 	if (priv->vif) {
-		xradio_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
+		cw1200_pm_stay_awake(&hw_priv->pm_state, 3*HZ);
 		//ieee80211_driver_hang_notify(priv->vif, GFP_KERNEL);
 	} else
 		return -ENODEV;
@@ -2452,18 +2452,18 @@ static ssize_t xradio_hang_write(struct file *file,
 }
 
 static const struct file_operations fops_hang = {
-	.open = xradio_generic_open,
-	.write = xradio_hang_write,
+	.open = cw1200_generic_open,
+	.write = cw1200_hang_write,
 	.llseek = default_llseek,
 };
 #endif
 
 #ifdef AP_HT_COMPAT_FIX
 extern u8 ap_compat_bssid[ETH_ALEN];
-static ssize_t xradio_ht_compat_show(struct file *file,
+static ssize_t cw1200_ht_compat_show(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_vif *priv = file->private_data;
+	struct cw1200_vif *priv = file->private_data;
 	char buf[100];
 	size_t size = 0;
 	sprintf(buf, "ht_compat_det=0x%x, BSSID=%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -2476,10 +2476,10 @@ static ssize_t xradio_ht_compat_show(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, size);
 }
 
-static ssize_t xradio_ht_compat_disalbe(struct file *file,
+static ssize_t cw1200_ht_compat_disalbe(struct file *file,
 	const char __user *user_buf, size_t count, loff_t *ppos)
 {
-	struct xradio_vif *priv = file->private_data;
+	struct cw1200_vif *priv = file->private_data;
 	char buf[2];
 	char *endptr = NULL;
 
@@ -2496,21 +2496,21 @@ static ssize_t xradio_ht_compat_disalbe(struct file *file,
 }
 
 static const struct file_operations fops_ht_compat_dis = {
-	.open  = xradio_generic_open,
-	.read  = xradio_ht_compat_show,
-	.write = xradio_ht_compat_disalbe,
+	.open  = cw1200_generic_open,
+	.read  = cw1200_ht_compat_show,
+	.write = cw1200_ht_compat_disalbe,
 	.llseek = default_llseek,
 };
 #endif
 
 #define VIF_DEBUGFS_NAME_S 10
-int xradio_debug_init_priv(struct xradio_common *hw_priv,
-			   struct xradio_vif *priv)
+int cw1200_debug_init_priv(struct cw1200_common *hw_priv,
+			   struct cw1200_vif *priv)
 {
 	int ret = -ENOMEM;
-	struct xradio_debug_priv *d;
+	struct cw1200_debug_priv *d;
 	char name[VIF_DEBUGFS_NAME_S];
-	xradio_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	if (SYS_WARN(!hw_priv))
 		return ret;
@@ -2518,7 +2518,7 @@ int xradio_debug_init_priv(struct xradio_common *hw_priv,
 	if (SYS_WARN(!hw_priv->debug))
 		return ret;
 
-	d = xr_kzalloc(sizeof(struct xradio_debug_priv), false);
+	d = xr_kzalloc(sizeof(struct cw1200_debug_priv), false);
 	priv->debug = d;
 	if (SYS_WARN(!d))
 		return ret;
@@ -2558,10 +2558,10 @@ err:
 
 }
 
-void xradio_debug_release_priv(struct xradio_vif *priv)
+void cw1200_debug_release_priv(struct cw1200_vif *priv)
 {
-	struct xradio_debug_priv *d = priv->debug;
-	xradio_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	struct cw1200_debug_priv *d = priv->debug;
+	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 	if (d) {
 		priv->debug = NULL;
 		debugfs_remove_recursive(d->debugfs_phy);
@@ -2569,10 +2569,10 @@ void xradio_debug_release_priv(struct xradio_vif *priv)
 	}
 }
 
-int xradio_print_fw_version(struct xradio_common *hw_priv, u8* buf, size_t len)
+int cw1200_print_fw_version(struct cw1200_common *hw_priv, u8* buf, size_t len)
 {
 	return snprintf(buf, len, "%s %d.%d",
-			xradio_debug_fw_types[hw_priv->wsm_caps.firmwareType],
+			cw1200_debug_fw_types[hw_priv->wsm_caps.firmwareType],
 			hw_priv->wsm_caps.firmwareVersion,
 			hw_priv->wsm_caps.firmwareBuildNumber);
 }
@@ -2582,19 +2582,19 @@ struct dentry *debugfs_host = NULL;
 #if defined(DGB_XRADIO_QC)
 struct dentry *debugfs_hwinfo = NULL;
 #endif
-int xradio_host_dbg_init(void)
+int cw1200_host_dbg_init(void)
 {
 	int line = 0;
-	xradio_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	if(!debugfs_initialized()) {
-		xradio_dbg(XRADIO_DBG_ERROR, "debugfs isnot initialized\n");
+		cw1200_dbg(XRADIO_DBG_ERROR, "debugfs isnot initialized\n");
 		return 0;
 	}
 
 #define ERR_LINE  do { line = __LINE__; goto err;} while(0)
 
-	debugfs_host = debugfs_create_dir("xradio_host_dbg", NULL);
+	debugfs_host = debugfs_create_dir("cw1200_host_dbg", NULL);
 	if (!debugfs_host)
 		ERR_LINE;
 
@@ -2643,7 +2643,7 @@ int xradio_host_dbg_init(void)
 
 #undef ERR_LINE
 err:
-	xradio_dbg(XRADIO_DBG_ERROR, "xradio_host_dbg_init failed=%d\n", line);
+	cw1200_dbg(XRADIO_DBG_ERROR, "cw1200_host_dbg_init failed=%d\n", line);
 	if (debugfs_host)
 		debugfs_remove_recursive(debugfs_host);
 #if defined(DGB_XRADIO_QC)
@@ -2653,9 +2653,9 @@ err:
 	return 0;
 }
 
-void xradio_host_dbg_deinit(void)
+void cw1200_host_dbg_deinit(void)
 {
-	xradio_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 	if(debugfs_host)
 		debugfs_remove_recursive(debugfs_host);
 #if defined(DGB_XRADIO_QC)
@@ -2664,12 +2664,12 @@ void xradio_host_dbg_deinit(void)
 	debugfs_host = NULL;	
 }
 
-int xradio_debug_init_common(struct xradio_common *hw_priv)
+int cw1200_debug_init_common(struct cw1200_common *hw_priv)
 {
 	int ret  = -ENOMEM;
 	int line = 0;
-	struct xradio_debug_common *d = NULL;
-	xradio_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	struct cw1200_debug_common *d = NULL;
+	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 	//init some debug variables here.
 	retry_dbg    = 0;
@@ -2677,14 +2677,14 @@ int xradio_debug_init_common(struct xradio_common *hw_priv)
 
 #define ERR_LINE  do { line = __LINE__; goto err;} while(0)
 
-	d = xr_kzalloc(sizeof(struct xradio_debug_common), false);
+	d = xr_kzalloc(sizeof(struct cw1200_debug_common), false);
 	hw_priv->debug = d;
 	if (!d) {
-		xradio_dbg(XRADIO_DBG_ERROR,"%s, xr_kzalloc failed!\n", __FUNCTION__);
+		cw1200_dbg(XRADIO_DBG_ERROR,"%s, xr_kzalloc failed!\n", __FUNCTION__);
 		return ret;
 	}
 
-	d->debugfs_phy = debugfs_create_dir("xradio", hw_priv->hw->wiphy->debugfsdir);
+	d->debugfs_phy = debugfs_create_dir("cw1200", hw_priv->hw->wiphy->debugfsdir);
 	if (!d->debugfs_phy)
 		ERR_LINE;
 
@@ -2833,7 +2833,7 @@ int xradio_debug_init_common(struct xradio_common *hw_priv)
 	}
 #endif
 
-	ret = xradio_itp_init(hw_priv);
+	ret = cw1200_itp_init(hw_priv);
 	if (ret)
 		ERR_LINE;
 
@@ -2842,17 +2842,17 @@ int xradio_debug_init_common(struct xradio_common *hw_priv)
 #undef ERR_LINE
 
 err:
-	xradio_dbg(XRADIO_DBG_ERROR, "xradio_debug_init_common failed=%d\n", line);
+	cw1200_dbg(XRADIO_DBG_ERROR, "cw1200_debug_init_common failed=%d\n", line);
 	hw_priv->debug = NULL;
 	debugfs_remove_recursive(d->debugfs_phy);
 	kfree(d);
 	return ret;
 }
 
-void xradio_debug_release_common(struct xradio_common *hw_priv)
+void cw1200_debug_release_common(struct cw1200_common *hw_priv)
 {
-	struct xradio_debug_common *d = hw_priv->debug;
-	xradio_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+	struct cw1200_debug_common *d = hw_priv->debug;
+	cw1200_dbg(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 
 #if defined(DGB_XRADIO_QC)
 	if (debugfs_hwinfo) {
@@ -2861,7 +2861,7 @@ void xradio_debug_release_common(struct xradio_common *hw_priv)
 	}
 #endif
 	if (d) {
-		xradio_itp_release(hw_priv);
+		cw1200_itp_release(hw_priv);
 		hw_priv->debug = NULL;
 		//removed by mac80211, don't remove it again, fixed wifi on/off by yangfh
 		//debugfs_remove_recursive(d->debugfs_phy);
@@ -2903,7 +2903,7 @@ char * p2p_frame_type[] = {
 	"Reserved"
 };
 #if (defined(CONFIG_XRADIO_DEBUG))
-void xradio_parse_frame(u8* mac_data, u8 iv_len, u16 flags, u8 if_id)
+void cw1200_parse_frame(u8* mac_data, u8 iv_len, u16 flags, u8 if_id)
 {
 	char * frame_msg = &framebuf[0];
 	char * proto_msg = &protobuf[0];
@@ -3119,7 +3119,7 @@ outprint:
 			           sa[0], sa[1], sa[2], sa[3], sa[4], sa[5]);
 		}
 
-		xradio_dbg(XRADIO_DBG_ALWY, "if%d-%s%s--%s\n", if_id,
+		cw1200_dbg(XRADIO_DBG_ALWY, "if%d-%s%s--%s\n", if_id,
 		           (PF_RX&flags)?"RX-":"TX-",framebuf, protobuf);
 	}
 }
@@ -3137,7 +3137,7 @@ atomic_t     file_ref = {0};
 #define T_LABEL_LEN  32
 char last_time_label[T_LABEL_LEN] = {0};
 
-int xradio_logfile(char *buffer, int buf_len, u8 b_time)
+int cw1200_logfile(char *buffer, int buf_len, u8 b_time)
 {
 	int ret=-1;
 	int size = buf_len;
@@ -3208,7 +3208,7 @@ exit:
 /***************************for HWT, yangfh********************************/
 struct sk_buff *hwt_skb = NULL;
 int    sent_num   = 0;
-int get_hwt_hif_tx(struct xradio_common *hw_priv, u8 **data, 
+int get_hwt_hif_tx(struct cw1200_common *hw_priv, u8 **data, 
                    size_t *tx_len, int *burst, int *vif_selected)
 {
 
@@ -3225,7 +3225,7 @@ int get_hwt_hif_tx(struct xradio_common *hw_priv, u8 **data,
 	if (!hwt_skb) {
 		hwt_skb = xr_alloc_skb(1504);
 		if (!hwt_skb) {
-			xradio_dbg(XRADIO_DBG_ERROR, "%s:skb is NULL!\n", __func__);
+			cw1200_dbg(XRADIO_DBG_ERROR, "%s:skb is NULL!\n", __func__);
 			return 0;
 		}
 		if ((u32)hwt_skb->data & 3) {
@@ -3263,7 +3263,7 @@ int get_hwt_hif_tx(struct xradio_common *hw_priv, u8 **data,
 	if (sent_num >= hwt_tx_num) {
 		hwt_tx_hdr->Params = 0x101;  //last packet
 		hwt_tx_en  = 0;  //disable hwt_tx_en
-		xradio_dbg(XRADIO_DBG_ALWY, "%s:sent last packet!\n", __func__);
+		cw1200_dbg(XRADIO_DBG_ALWY, "%s:sent last packet!\n", __func__);
 	} else if (hwt_tx_cfm) {
 		hwt_tx_hdr->Params = !(sent_num%hwt_tx_cfm);
 	}

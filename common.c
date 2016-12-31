@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/vmalloc.h>
 
-#include "xradio.h"
+#include "cw1200.h"
 
 struct xr_file *xr_fileopen(const char *path, int open_mode, umode_t mode)
 {
@@ -23,7 +23,7 @@ struct xr_file *xr_fileopen(const char *path, int open_mode, umode_t mode)
 
 	xr_fp = xr_kmalloc(sizeof(struct xr_file), false);
 	if (!xr_fp) {
-		xradio_dbg(XRADIO_DBG_ERROR, "%s:xr_kmalloc failed,size=%d!\n", 
+		cw1200_dbg(XRADIO_DBG_ERROR, "%s:xr_kmalloc failed,size=%d!\n", 
 		           __func__, sizeof(struct xr_file));
 		return NULL;
 	}
@@ -32,7 +32,7 @@ struct xr_file *xr_fileopen(const char *path, int open_mode, umode_t mode)
 	//open file.
 	xr_fp->fp = filp_open(path, open_mode, mode);
 	if (IS_ERR(xr_fp->fp)) {
-		xradio_dbg(XRADIO_DBG_ERROR, "filp_open failed(%d)\n", (int)xr_fp->fp);
+		cw1200_dbg(XRADIO_DBG_ERROR, "filp_open failed(%d)\n", (int)xr_fp->fp);
 		kfree(xr_fp);
 		return NULL;
 	}
@@ -92,7 +92,7 @@ struct xr_file *xr_request_file(const char *path)
 	int ret = -1;
 	struct xr_file *xr_fp = xr_fileopen(path, O_RDONLY, 0);
 	if (!xr_fp) {
-		xradio_dbg(XRADIO_DBG_ERROR, "%s:xr_fileopen failed!\n", __func__);
+		cw1200_dbg(XRADIO_DBG_ERROR, "%s:xr_fileopen failed!\n", __func__);
 		return NULL;
 	}
 
@@ -127,14 +127,14 @@ int access_file(char *path, char *buffer, int size, int isRead)
 
 	if (IS_ERR(fp)) {
 		if ((int)fp != -ENOENT)
-			xradio_dbg(XRADIO_DBG_ERROR, "can't open %s, failed(%d)\n", path, (int)fp);
+			cw1200_dbg(XRADIO_DBG_ERROR, "can't open %s, failed(%d)\n", path, (int)fp);
 		return -1;
 	}
 
 	if(isRead)
 	{
 		if(fp->f_op->read == NULL) {
-			xradio_dbg(XRADIO_DBG_ERROR, "read %s Not allow.\n", path);
+			cw1200_dbg(XRADIO_DBG_ERROR, "read %s Not allow.\n", path);
 			return -1;
 		}
 		else {
@@ -147,7 +147,7 @@ int access_file(char *path, char *buffer, int size, int isRead)
 	else
 	{
 		if(fp->f_op->write == NULL) {
-			xradio_dbg(XRADIO_DBG_ERROR, "write %s Not allow.\n", path);
+			cw1200_dbg(XRADIO_DBG_ERROR, "write %s Not allow.\n", path);
 			return -1;
 		}
 		else {
@@ -159,7 +159,7 @@ int access_file(char *path, char *buffer, int size, int isRead)
 	}
 	filp_close(fp,NULL);
 
-	xradio_dbg(XRADIO_DBG_NIY, "Access_file %s(%d)\n", path, ret);
+	cw1200_dbg(XRADIO_DBG_NIY, "Access_file %s(%d)\n", path, ret);
 	return ret;
 }
 

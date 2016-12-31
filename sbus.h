@@ -20,7 +20,7 @@
  * Implemented and instantiated in particular modules.
  */
 
-struct xradio_common;
+struct cw1200_common;
 /*sdio bus private struct*/
 #define SDIO_UNLOAD   0
 #define SDIO_LOAD     1

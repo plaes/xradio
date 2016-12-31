@@ -61,19 +61,19 @@ extern u32 tx_total_cnt;
 
 #ifdef DGB_LOG_FILE
 #define DGB_LOG_BUF_LEN 1500
-#define DGB_LOG_PATH0    "/data/xradio_err.log"
+#define DGB_LOG_PATH0    "/data/cw1200_err.log"
 
 extern u8 log_buffer[DGB_LOG_BUF_LEN];
 extern u16 log_pos;
-int xradio_logfile(char *buffer, int buf_len, u8 b_time);
+int cw1200_logfile(char *buffer, int buf_len, u8 b_time);
 
-#define LOG_FILE(b_time, msg) xradio_logfile(msg, -1, b_time)
+#define LOG_FILE(b_time, msg) cw1200_logfile(msg, -1, b_time)
 #define LOG_FILE_VARS(b_time, ...)  do {    \
 	if (!log_pos)   \
 		memset(log_buffer, 0, DGB_LOG_BUF_LEN); \
 	if (log_pos <= 1000)  \
 		log_pos += sprintf((char *)(log_buffer+log_pos), __VA_ARGS__); \
-	if (xradio_logfile(log_buffer, log_pos, b_time) >= 0)   \
+	if (cw1200_logfile(log_buffer, log_pos, b_time) >= 0)   \
 		log_pos = 0; \
 } while (0)
 
@@ -94,7 +94,7 @@ int xradio_logfile(char *buffer, int buf_len, u8 b_time);
 #define SYS_WARN(c)    WARN_ON(c)
 #endif
 
-#define xradio_dbg(level, ...)           \
+#define cw1200_dbg(level, ...)           \
 	do {                                 \
 		if ((level) & dbg_common & XRADIO_DBG_ERROR)      \
 			printk(KERN_ERR "[XRADIO_ERR] " __VA_ARGS__); \
@@ -260,7 +260,7 @@ int xradio_logfile(char *buffer, int buf_len, u8 b_time);
 #define PF_IPADDR   0x2000    //ip address of ip packets.
 #define PF_UNKNWN   0x4000    //print unknown type frames of 802.11 flag you set.
 #define PF_RX       0x8000    //0:TX, 1:RX. So, need to add PF_RX in Rx path.
-void xradio_parse_frame(u8* mac_data, u8 iv_len, u16 flags, u8 if_id);
+void cw1200_parse_frame(u8* mac_data, u8 iv_len, u16 flags, u8 if_id);
 
 #if defined(DGB_XRADIO_HWT) //hardware test
 typedef struct HWT_PARAMETERS_S {
@@ -271,7 +271,7 @@ typedef struct HWT_PARAMETERS_S {
 	u16 Datalen;
 	u16 Data;
 } HWT_PARAMETERS;
-int get_hwt_hif_tx(struct xradio_common *hw_priv, u8 **data, 
+int get_hwt_hif_tx(struct cw1200_common *hw_priv, u8 **data, 
                    size_t *tx_len, int *burst, int *vif_selected);
 #endif  //DGB_XRADIO_HWT
 
@@ -280,7 +280,7 @@ int get_hwt_hif_tx(struct xradio_common *hw_priv, u8 **data,
 #define SYS_BUG(c)  BUG_ON(c)
 #define SYS_WARN(c) WARN_ON(c)
 
-#define xradio_dbg(level, ...)
+#define cw1200_dbg(level, ...)
 #define sbus_printk(level, ...)
 #define txrx_printk(level, ...)
 #define bh_printk(level, ...)
@@ -295,14 +295,14 @@ int get_hwt_hif_tx(struct xradio_common *hw_priv, u8 **data,
 #define PARAM_CHECK_FALSE
 #define PARAM_CHECK_TRUE
 
-static inline void xradio_parse_frame(u8* mac_data, u8 iv_len, u16 flags, u8 if_id)
+static inline void cw1200_parse_frame(u8* mac_data, u8 iv_len, u16 flags, u8 if_id)
 {
 }
 #endif  //CONFIG_XRADIO_DEBUG
 
 #ifdef CONFIG_XRADIO_DEBUGFS
 /****************************** debugfs version *******************************/
-struct xradio_debug_common {
+struct cw1200_debug_common {
 	struct dentry *debugfs_phy;
 	int tx_cache_miss;
 	int tx_burst;
@@ -312,11 +312,11 @@ struct xradio_debug_common {
 	int ba_cnt_rx;
 	int ba_acc_rx;
 #ifdef CONFIG_XRADIO_ITP
-	struct xradio_itp itp;
+	struct cw1200_itp itp;
 #endif /* CONFIG_XRADIO_ITP */
 };
 
-struct xradio_debug_priv {
+struct cw1200_debug_priv {
 	struct dentry *debugfs_phy;
 	int tx;
 	int tx_agg;
@@ -336,27 +336,27 @@ struct xradio_debug_priv {
 #define DBG_BH_RX_TOTAL_ADD rx_total_cnt++
 #define DBG_BH_TX_TOTAL_ADD tx_total_cnt++
 
-int xradio_debug_init_common(struct xradio_common *hw_priv);
-int xradio_debug_init_priv(struct xradio_common *hw_priv,
-			   struct xradio_vif *priv);
-void xradio_debug_release_common(struct xradio_common *hw_priv);
-void xradio_debug_release_priv(struct xradio_vif *priv);
+int cw1200_debug_init_common(struct cw1200_common *hw_priv);
+int cw1200_debug_init_priv(struct cw1200_common *hw_priv,
+			   struct cw1200_vif *priv);
+void cw1200_debug_release_common(struct cw1200_common *hw_priv);
+void cw1200_debug_release_priv(struct cw1200_vif *priv);
 
-static inline void xradio_debug_txed(struct xradio_vif *priv)
+static inline void cw1200_debug_txed(struct cw1200_vif *priv)
 {
 	if (!priv->debug)
 		return;
 	++priv->debug->tx;
 }
 
-static inline void xradio_debug_txed_agg(struct xradio_vif *priv)
+static inline void cw1200_debug_txed_agg(struct cw1200_vif *priv)
 {
 	if (!priv->debug)
 		return;
 	++priv->debug->tx_agg;
 }
 
-static inline void xradio_debug_txed_multi(struct xradio_vif *priv,
+static inline void cw1200_debug_txed_multi(struct cw1200_vif *priv,
 					   int count)
 {
 	if (!priv->debug)
@@ -365,56 +365,56 @@ static inline void xradio_debug_txed_multi(struct xradio_vif *priv,
 	priv->debug->tx_multi_frames += count;
 }
 
-static inline void xradio_debug_rxed(struct xradio_vif *priv)
+static inline void cw1200_debug_rxed(struct cw1200_vif *priv)
 {
 	if (!priv->debug)
 		return;
 	++priv->debug->rx;
 }
 
-static inline void xradio_debug_rxed_agg(struct xradio_vif *priv)
+static inline void cw1200_debug_rxed_agg(struct cw1200_vif *priv)
 {
 	if (!priv->debug)
 		return;
 	++priv->debug->rx_agg;
 }
 
-static inline void xradio_debug_tx_cache_miss(struct xradio_common *hw_priv)
+static inline void cw1200_debug_tx_cache_miss(struct cw1200_common *hw_priv)
 {
 	if (!hw_priv->debug)
 		return;
 	++hw_priv->debug->tx_cache_miss;
 }
 
-static inline void xradio_debug_tx_align(struct xradio_vif *priv)
+static inline void cw1200_debug_tx_align(struct cw1200_vif *priv)
 {
 	if (!priv->debug)
 		return;
 	++priv->debug->tx_align;
 }
 
-static inline void xradio_debug_tx_ttl(struct xradio_vif *priv)
+static inline void cw1200_debug_tx_ttl(struct cw1200_vif *priv)
 {
 	if (!priv->debug)
 		return;
 	++priv->debug->tx_ttl;
 }
 
-static inline void xradio_debug_tx_burst(struct xradio_common *hw_priv)
+static inline void cw1200_debug_tx_burst(struct cw1200_common *hw_priv)
 {
 	if (!hw_priv->debug)
 		return;
 	++hw_priv->debug->tx_burst;
 }
 
-static inline void xradio_debug_rx_burst(struct xradio_common *hw_priv)
+static inline void cw1200_debug_rx_burst(struct cw1200_common *hw_priv)
 {
 	if (!hw_priv->debug)
 		return;
 	++hw_priv->debug->rx_burst;
 }
 
-static inline void xradio_debug_ba(struct xradio_common *hw_priv,
+static inline void cw1200_debug_ba(struct cw1200_common *hw_priv,
 				   int ba_cnt, int ba_acc, int ba_cnt_rx,
 				   int ba_acc_rx)
 {
@@ -426,10 +426,10 @@ static inline void xradio_debug_ba(struct xradio_common *hw_priv,
 	hw_priv->debug->ba_acc_rx = ba_acc_rx;
 }
 
-int xradio_print_fw_version(struct xradio_common *hw_priv, u8* buf, size_t len);
+int cw1200_print_fw_version(struct cw1200_common *hw_priv, u8* buf, size_t len);
 
-int   xradio_host_dbg_init(void);
-void  xradio_host_dbg_deinit(void);
+int   cw1200_host_dbg_init(void);
+void  cw1200_host_dbg_deinit(void);
 
 #else /* CONFIG_XRADIO_DEBUGFS */
 /****************************** no debugfs version *******************************/
@@ -440,84 +440,84 @@ void  xradio_host_dbg_deinit(void);
 #define DBG_BH_RX_TOTAL_ADD
 #define DBG_BH_TX_TOTAL_ADD
 
-static inline int xradio_debug_init_common(struct xradio_common *hw_priv)
+static inline int cw1200_debug_init_common(struct cw1200_common *hw_priv)
 {
 	return 0;
 }
 
-static inline int xradio_debug_init_priv(struct xradio_common *hw_priv,
-			   struct xradio_vif *priv)
+static inline int cw1200_debug_init_priv(struct cw1200_common *hw_priv,
+			   struct cw1200_vif *priv)
 {
 	return 0;
 }
 
-static inline void xradio_debug_release_common(struct xradio_common *hw_priv)
+static inline void cw1200_debug_release_common(struct cw1200_common *hw_priv)
 {
 }
 
-static inline void xradio_debug_release_priv(struct xradio_vif *priv)
+static inline void cw1200_debug_release_priv(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_txed(struct xradio_vif *priv)
+static inline void cw1200_debug_txed(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_txed_agg(struct xradio_vif *priv)
+static inline void cw1200_debug_txed_agg(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_txed_multi(struct xradio_vif *priv,
+static inline void cw1200_debug_txed_multi(struct cw1200_vif *priv,
 					   int count)
 {
 }
 
-static inline void xradio_debug_rxed(struct xradio_vif *priv)
+static inline void cw1200_debug_rxed(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_rxed_agg(struct xradio_vif *priv)
+static inline void cw1200_debug_rxed_agg(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_tx_cache_miss(struct xradio_common *common)
+static inline void cw1200_debug_tx_cache_miss(struct cw1200_common *common)
 {
 }
 
-static inline void xradio_debug_tx_align(struct xradio_vif *priv)
+static inline void cw1200_debug_tx_align(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_tx_ttl(struct xradio_vif *priv)
+static inline void cw1200_debug_tx_ttl(struct cw1200_vif *priv)
 {
 }
 
-static inline void xradio_debug_tx_burst(struct xradio_common *hw_priv)
+static inline void cw1200_debug_tx_burst(struct cw1200_common *hw_priv)
 {
 }
 
-static inline void xradio_debug_rx_burst(struct xradio_common *hw_priv)
+static inline void cw1200_debug_rx_burst(struct cw1200_common *hw_priv)
 {
 }
 
-static inline void xradio_debug_ba(struct xradio_common *hw_priv,
+static inline void cw1200_debug_ba(struct cw1200_common *hw_priv,
 				   int ba_cnt, int ba_acc, int ba_cnt_rx,
 				   int ba_acc_rx)
 {
 }
 
-static inline int xradio_print_fw_version(struct xradio_vif *priv, 
+static inline int cw1200_print_fw_version(struct cw1200_vif *priv, 
 									u8* buf, size_t len)
 {
 	return 0;
 }
 
-static inline int   xradio_host_dbg_init(void)
+static inline int   cw1200_host_dbg_init(void)
 {
 	return 0;
 }
 
-static inline void  xradio_host_dbg_deinit(void)
+static inline void  cw1200_host_dbg_deinit(void)
 {
 }
 #endif /* CONFIG_XRADIO_DEBUGFS */

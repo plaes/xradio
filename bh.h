@@ -12,25 +12,25 @@
 #ifndef XRADIO_BH_H
 #define XRADIO_BH_H
 
-#define XRADIO_BH_THREAD   "xradio_bh"
+#define XRADIO_BH_THREAD   "cw1200_bh"
 
-/* extern */ struct xradio_common;
+/* extern */ struct cw1200_common;
 
 #define SDIO_BLOCK_SIZE (528)
 
-int xradio_register_bh(struct xradio_common *hw_priv);
-void xradio_unregister_bh(struct xradio_common *hw_priv);
-void xradio_irq_handler(struct xradio_common *hw_priv);
-void xradio_bh_wakeup(struct xradio_common *hw_priv);
-int xradio_bh_suspend(struct xradio_common *hw_priv);
-int xradio_bh_resume(struct xradio_common *hw_priv);
+int cw1200_register_bh(struct cw1200_common *hw_priv);
+void cw1200_unregister_bh(struct cw1200_common *hw_priv);
+void cw1200_irq_handler(struct cw1200_common *hw_priv);
+void cw1200_bh_wakeup(struct cw1200_common *hw_priv);
+int cw1200_bh_suspend(struct cw1200_common *hw_priv);
+int cw1200_bh_resume(struct cw1200_common *hw_priv);
 /* Must be called from BH thread. */
-void xradio_enable_powersave(struct xradio_vif *priv, bool enable);
-int wsm_release_tx_buffer(struct xradio_common *hw_priv, int count);
-int wsm_release_vif_tx_buffer(struct xradio_common *hw_priv, int if_id,
+void cw1200_enable_powersave(struct cw1200_vif *priv, bool enable);
+int wsm_release_tx_buffer(struct cw1200_common *hw_priv, int count);
+int wsm_release_vif_tx_buffer(struct cw1200_common *hw_priv, int if_id,
                               int count);
-int xradio_init_resv_skb(struct xradio_common *hw_priv);
-void xradio_deinit_resv_skb(struct xradio_common *hw_priv);
-int xradio_realloc_resv_skb(struct xradio_common *hw_priv,
+int cw1200_init_resv_skb(struct cw1200_common *hw_priv);
+void cw1200_deinit_resv_skb(struct cw1200_common *hw_priv);
+int cw1200_realloc_resv_skb(struct cw1200_common *hw_priv,
 							struct sk_buff *skb);
 #endif /* XRADIO_BH_H */

@@ -25,15 +25,15 @@
 #define SDD_PTA_CFG_ELT_ID             0xEB
 #define SDD_REFERENCE_FREQUENCY_ELT_ID 0xC5
 #define FIELD_OFFSET(type, field) ((u8 *)&((type *)0)->field - (u8 *)0)
-#define FIND_NEXT_ELT(e) (struct xradio_sdd *)((u8 *)&e->data + e->length)
-struct xradio_sdd {
+#define FIND_NEXT_ELT(e) (struct cw1200_sdd *)((u8 *)&e->data + e->length)
+struct cw1200_sdd {
 	u8 id;
 	u8 length;
 	u8 data[];
 };
 
-struct xradio_common;
-int xradio_load_firmware(struct xradio_common *hw_priv);
-int xradio_dev_deinit(struct xradio_common *hw_priv);
+struct cw1200_common;
+int cw1200_load_firmware(struct cw1200_common *hw_priv);
+int cw1200_dev_deinit(struct cw1200_common *hw_priv);
 
 #endif

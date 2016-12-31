@@ -30,49 +30,49 @@
 /* ******************************************************************** */
 /* mac80211 API								*/
 
-int xradio_start(struct ieee80211_hw *dev);
-void xradio_stop(struct ieee80211_hw *dev);
-int xradio_add_interface(struct ieee80211_hw *dev, struct ieee80211_vif *vif);
-void xradio_remove_interface(struct ieee80211_hw *dev, struct ieee80211_vif *vif);
-int xradio_change_interface(struct ieee80211_hw *dev,
+int cw1200_start(struct ieee80211_hw *dev);
+void cw1200_stop(struct ieee80211_hw *dev);
+int cw1200_add_interface(struct ieee80211_hw *dev, struct ieee80211_vif *vif);
+void cw1200_remove_interface(struct ieee80211_hw *dev, struct ieee80211_vif *vif);
+int cw1200_change_interface(struct ieee80211_hw *dev,
                             struct ieee80211_vif *vif,
                             enum nl80211_iftype new_type,
                             bool p2p);
-int xradio_config(struct ieee80211_hw *dev, u32 changed);
-int xradio_change_interface(struct ieee80211_hw *dev,
+int cw1200_config(struct ieee80211_hw *dev, u32 changed);
+int cw1200_change_interface(struct ieee80211_hw *dev,
                             struct ieee80211_vif *vif,
                             enum nl80211_iftype new_type,
                             bool p2p);
-void xradio_configure_filter(struct ieee80211_hw *dev,
+void cw1200_configure_filter(struct ieee80211_hw *dev,
                              unsigned int changed_flags,
                              unsigned int *total_flags,
                              u64 multicast);
-int xradio_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+int cw1200_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
                    u16 queue, const struct ieee80211_tx_queue_params *params);
-int xradio_get_stats(struct ieee80211_hw *dev,
+int cw1200_get_stats(struct ieee80211_hw *dev,
                      struct ieee80211_low_level_stats *stats);
 /* Not more a part of interface?
-int xradio_get_tx_stats(struct ieee80211_hw *dev,
+int cw1200_get_tx_stats(struct ieee80211_hw *dev,
 			struct ieee80211_tx_queue_stats *stats);
 */
-int xradio_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
+int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
                    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
                    struct ieee80211_key_conf *key);
-int xradio_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
+int cw1200_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
 
-void xradio_flush(struct ieee80211_hw *hw, bool drop);
+void cw1200_flush(struct ieee80211_hw *hw, bool drop);
 
 
-int xradio_remain_on_channel(struct ieee80211_hw *hw,
+int cw1200_remain_on_channel(struct ieee80211_hw *hw,
                              struct ieee80211_channel *chan,
                              enum nl80211_channel_type channel_type,
                              int duration);
-int xradio_cancel_remain_on_channel(struct ieee80211_hw *hw);
-int xradio_set_arpreply(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-u64 xradio_prepare_multicast(struct ieee80211_hw *hw,
+int cw1200_cancel_remain_on_channel(struct ieee80211_hw *hw);
+int cw1200_set_arpreply(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+u64 cw1200_prepare_multicast(struct ieee80211_hw *hw,
                              struct netdev_hw_addr_list *mc_list);
-int xradio_set_pm(struct xradio_vif *priv, const struct wsm_set_pm *arg);
-void xradio_set_data_filter(struct ieee80211_hw *hw,
+int cw1200_set_pm(struct cw1200_vif *priv, const struct wsm_set_pm *arg);
+void cw1200_set_data_filter(struct ieee80211_hw *hw,
                             struct ieee80211_vif *vif,
                             void *data,
                             int len);
@@ -80,58 +80,58 @@ void xradio_set_data_filter(struct ieee80211_hw *hw,
 /* ******************************************************************** */
 /* WSM callbacks							*/
 
-/* void xradio_set_pm_complete_cb(struct xradio_common *hw_priv,
+/* void cw1200_set_pm_complete_cb(struct cw1200_common *hw_priv,
 	struct wsm_set_pm_complete *arg); */
-void xradio_channel_switch_cb(struct xradio_common *hw_priv);
+void cw1200_channel_switch_cb(struct cw1200_common *hw_priv);
 
 /* ******************************************************************** */
 /* WSM events								*/
 
-void xradio_free_event_queue(struct xradio_common *hw_priv);
-void xradio_event_handler(struct work_struct *work);
-void xradio_bss_loss_work(struct work_struct *work);
-void xradio_connection_loss_work(struct work_struct *work);
-void xradio_keep_alive_work(struct work_struct *work);
-void xradio_tx_failure_work(struct work_struct *work);
+void cw1200_free_event_queue(struct cw1200_common *hw_priv);
+void cw1200_event_handler(struct work_struct *work);
+void cw1200_bss_loss_work(struct work_struct *work);
+void cw1200_connection_loss_work(struct work_struct *work);
+void cw1200_keep_alive_work(struct work_struct *work);
+void cw1200_tx_failure_work(struct work_struct *work);
 
 /* ******************************************************************** */
 /* Internal API								*/
 
-int xradio_setup_mac(struct xradio_common *hw_priv);
-void xradio_join_work(struct work_struct *work);
-void xradio_join_timeout(struct work_struct *work);
-void xradio_unjoin_work(struct work_struct *work);
-void xradio_offchannel_work(struct work_struct *work);
-void xradio_wep_key_work(struct work_struct *work);
-void xradio_update_filtering(struct xradio_vif *priv);
-void xradio_update_filtering_work(struct work_struct *work);
-int __xradio_flush(struct xradio_common *hw_priv, bool drop, int if_id);
-void xradio_set_beacon_wakeup_period_work(struct work_struct *work);
-int xradio_enable_listening(struct xradio_vif *priv, struct ieee80211_channel *chan);
-int xradio_disable_listening(struct xradio_vif *priv);
-int xradio_set_uapsd_param(struct xradio_vif *priv, const struct wsm_edca_params *arg);
-void xradio_ba_work(struct work_struct *work);
-void xradio_ba_timer(unsigned long arg);
-const u8 *xradio_get_ie(u8 *start, size_t len, u8 ie);
-int xradio_vif_setup(struct xradio_vif *priv);
-int xradio_setup_mac_pvif(struct xradio_vif *priv);
-void xradio_iterate_vifs(void *data, u8 *mac, struct ieee80211_vif *vif);
-void xradio_rem_chan_timeout(struct work_struct *work);
-int xradio_set_macaddrfilter(struct xradio_common *hw_priv, struct xradio_vif *priv, u8 *data);
+int cw1200_setup_mac(struct cw1200_common *hw_priv);
+void cw1200_join_work(struct work_struct *work);
+void cw1200_join_timeout(struct work_struct *work);
+void cw1200_unjoin_work(struct work_struct *work);
+void cw1200_offchannel_work(struct work_struct *work);
+void cw1200_wep_key_work(struct work_struct *work);
+void cw1200_update_filtering(struct cw1200_vif *priv);
+void cw1200_update_filtering_work(struct work_struct *work);
+int __cw1200_flush(struct cw1200_common *hw_priv, bool drop, int if_id);
+void cw1200_set_beacon_wakeup_period_work(struct work_struct *work);
+int cw1200_enable_listening(struct cw1200_vif *priv, struct ieee80211_channel *chan);
+int cw1200_disable_listening(struct cw1200_vif *priv);
+int cw1200_set_uapsd_param(struct cw1200_vif *priv, const struct wsm_edca_params *arg);
+void cw1200_ba_work(struct work_struct *work);
+void cw1200_ba_timer(unsigned long arg);
+const u8 *cw1200_get_ie(u8 *start, size_t len, u8 ie);
+int cw1200_vif_setup(struct cw1200_vif *priv);
+int cw1200_setup_mac_pvif(struct cw1200_vif *priv);
+void cw1200_iterate_vifs(void *data, u8 *mac, struct ieee80211_vif *vif);
+void cw1200_rem_chan_timeout(struct work_struct *work);
+int cw1200_set_macaddrfilter(struct cw1200_common *hw_priv, struct cw1200_vif *priv, u8 *data);
 #ifdef ROAM_OFFLOAD
-int xradio_testmode_event(struct wiphy *wiphy, const u32 msg_id,
+int cw1200_testmode_event(struct wiphy *wiphy, const u32 msg_id,
                           const void *data, int len, gfp_t gfp);
 #endif /*ROAM_OFFLOAD*/
 #ifdef IPV6_FILTERING
-int xradio_set_na(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+int cw1200_set_na(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 #endif /*IPV6_FILTERING*/
 #ifdef CONFIG_XRADIO_TESTMODE
-void xradio_device_power_calc(struct xradio_common *priv,
+void cw1200_device_power_calc(struct cw1200_common *priv,
                               s16 max_output_power, s16 fe_cor, u32 band);
-int xradio_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
-int xradio_tesmode_event(struct wiphy *wiphy, const u32 msg_id,
+int cw1200_testmode_cmd(struct ieee80211_hw *hw, void *data, int len);
+int cw1200_tesmode_event(struct wiphy *wiphy, const u32 msg_id,
                          const void *data, int len, gfp_t gfp);
-int xradio_get_tx_power_range(struct ieee80211_hw *hw);
-int xradio_get_tx_power_level(struct ieee80211_hw *hw);
+int cw1200_get_tx_power_range(struct ieee80211_hw *hw);
+int cw1200_get_tx_power_level(struct ieee80211_hw *hw);
 #endif /* CONFIG_XRADIO_TESTMODE */
 #endif

@@ -14,7 +14,7 @@
 
 #include <linux/spinlock.h>
 
-struct xradio_common;
+struct cw1200_common;
 
 /* Bands */
 /* Radio band 2.412 -2.484 GHz. */
@@ -719,7 +719,7 @@ struct wsm_configuration {
 	/* [out] */ struct wsm_tx_power_range txPowerRange[2];
 };
 
-int wsm_configuration(struct xradio_common *hw_priv,
+int wsm_configuration(struct cw1200_common *hw_priv,
 		      struct wsm_configuration *arg,
 		      int if_id);
 
@@ -729,21 +729,21 @@ struct wsm_reset {
 	/* [in] */ bool reset_statistics;
 };
 
-int wsm_reset(struct xradio_common *hw_priv, const struct wsm_reset *arg,
+int wsm_reset(struct cw1200_common *hw_priv, const struct wsm_reset *arg,
 	      int if_id);
 
 //add by yangfh
-void wsm_upper_restart(struct xradio_common *hw_priv);
+void wsm_upper_restart(struct cw1200_common *hw_priv);
 
 //add by yangfh
 void wsm_query_work(struct work_struct *work);
 
 /* 3.5 */
-int wsm_read_mib(struct xradio_common *hw_priv, u16 mibId, void *buf,
+int wsm_read_mib(struct cw1200_common *hw_priv, u16 mibId, void *buf,
 		 size_t buf_size, size_t arg_size);
 
 /* 3.7 */
-int wsm_write_mib(struct xradio_common *hw_priv, u16 mibId, void *buf,
+int wsm_write_mib(struct cw1200_common *hw_priv, u16 mibId, void *buf,
 		  size_t buf_size, int if_id);
 
 /* 3.9 */
@@ -774,7 +774,7 @@ struct wsm_scan_complete {
 #endif /*ROAM_OFFLOAD*/
 };
 
-typedef void (*wsm_scan_complete_cb) (struct xradio_common *hw_priv,
+typedef void (*wsm_scan_complete_cb) (struct cw1200_common *hw_priv,
 				      struct wsm_scan_complete *arg);
 
 /* 3.9 */
@@ -823,11 +823,11 @@ struct wsm_scan {
 	/* [in] */ struct wsm_scan_ch *ch;
 };
 
-int wsm_scan(struct xradio_common *hw_priv, const struct wsm_scan *arg,
+int wsm_scan(struct cw1200_common *hw_priv, const struct wsm_scan *arg,
 			int if_id);
 
 /* 3.11 */
-int wsm_stop_scan(struct xradio_common *hw_priv, int if_id);
+int wsm_stop_scan(struct cw1200_common *hw_priv, int if_id);
 
 /* 3.14 */
 struct wsm_tx_confirm {
@@ -864,17 +864,17 @@ struct wsm_tx_confirm {
 };
 
 /* 3.15 */
-typedef void (*wsm_tx_confirm_cb) (struct xradio_common *hw_priv,
+typedef void (*wsm_tx_confirm_cb) (struct cw1200_common *hw_priv,
 				   struct wsm_tx_confirm *arg);
 
 /* Note that ideology of wsm_tx struct is different against the rest of
  * WSM API. wsm_hdr is /not/ a caller-adapted struct to be used as an input
  * argument for WSM call, but a prepared bytestream to be sent to firmware.
- * It is filled partly in xradio_tx, partly in low-level WSM code.
+ * It is filled partly in cw1200_tx, partly in low-level WSM code.
  * Please pay attention once again: ideology is different.
  *
  * Legend:
- * - [in]: xradio_tx must fill this field.
+ * - [in]: cw1200_tx must fill this field.
  * - [wsm]: the field is filled by low-level WSM.
  */
 struct wsm_tx {
@@ -949,7 +949,7 @@ struct wsm_rx {
 /* = sizeof(generic hi hdr) + sizeof(wsm hdr) */
 #define WSM_RX_EXTRA_HEADROOM (16)
 
-typedef void (*wsm_rx_cb) (struct xradio_vif *priv, struct wsm_rx *arg,
+typedef void (*wsm_rx_cb) (struct cw1200_vif *priv, struct wsm_rx *arg,
 			   struct sk_buff **skb_p);
 
 /* 3.17 */
@@ -964,7 +964,7 @@ struct wsm_event {
 	/* [out] */ u32 eventData;
 };
 
-struct xradio_wsm_event {
+struct cw1200_wsm_event {
 	struct list_head link;
 	struct wsm_event evt;
 	u8 if_id;
@@ -973,7 +973,7 @@ struct xradio_wsm_event {
 /* 3.18 - 3.22 */
 /* Measurement. Skipped for now. Irrelevent. */
 
-typedef void (*wsm_event_cb) (struct xradio_common *hw_priv,
+typedef void (*wsm_event_cb) (struct cw1200_common *hw_priv,
 			      struct wsm_event *arg);
 
 /* 3.23 */
@@ -1030,7 +1030,7 @@ struct wsm_join {
 	/* [out] */ int maxPowerLevel;
 };
 
-int wsm_join(struct xradio_common *hw_priv, struct wsm_join *arg, int if_id);
+int wsm_join(struct cw1200_common *hw_priv, struct wsm_join *arg, int if_id);
 
 /* 3.25 */
 struct wsm_set_pm {
@@ -1047,7 +1047,7 @@ struct wsm_set_pm {
 	/* [in] */ u8 minAutoPsPollPeriod;
 };
 
-int wsm_set_pm(struct xradio_common *hw_priv, const struct wsm_set_pm *arg,
+int wsm_set_pm(struct cw1200_common *hw_priv, const struct wsm_set_pm *arg,
 	       int if_id);
 
 /* 3.27 */
@@ -1055,7 +1055,7 @@ struct wsm_set_pm_complete {
 	u8 psm;			/* WSM_PSM_... */
 };
 
-typedef void (*wsm_set_pm_complete_cb) (struct xradio_common *hw_priv,
+typedef void (*wsm_set_pm_complete_cb) (struct cw1200_common *hw_priv,
 					struct wsm_set_pm_complete *arg);
 
 /* 3.28 */
@@ -1072,7 +1072,7 @@ struct wsm_set_bss_params {
 	u32 operationalRateSet;
 };
 
-int wsm_set_bss_params(struct xradio_common *hw_priv,
+int wsm_set_bss_params(struct cw1200_common *hw_priv,
 		       const struct wsm_set_bss_params *arg, int if_id);
 
 /* 3.30 */
@@ -1139,7 +1139,7 @@ struct wsm_add_key {
 	} __packed;
 } __packed;
 
-int wsm_add_key(struct xradio_common *hw_priv, const struct wsm_add_key *arg,
+int wsm_add_key(struct cw1200_common *hw_priv, const struct wsm_add_key *arg,
 			int if_id);
 
 /* 3.32 */
@@ -1148,7 +1148,7 @@ struct wsm_remove_key {
 	u8 entryIndex;
 };
 
-int wsm_remove_key(struct xradio_common *hw_priv,
+int wsm_remove_key(struct cw1200_common *hw_priv,
 		   const struct wsm_remove_key *arg, int if_id);
 
 /* 3.34 */
@@ -1179,7 +1179,7 @@ do {									    \
 	p->maxTransmitLifetime = (max_life_time);			\
 } while (0)
 
-int wsm_set_tx_queue_params(struct xradio_common *hw_priv,
+int wsm_set_tx_queue_params(struct cw1200_common *hw_priv,
 			    const struct wsm_set_tx_queue_params *arg,
 			    u8 id, int if_id);
 
@@ -1224,10 +1224,10 @@ struct wsm_edca_params {
 		p->uapsdEnable = (uapsd);			\
 	} while (0)
 
-int wsm_set_edca_params(struct xradio_common *hw_priv,
+int wsm_set_edca_params(struct cw1200_common *hw_priv,
 			const struct wsm_edca_params *arg, int if_id);
 
-int wsm_set_uapsd_param(struct xradio_common *hw_priv,
+int wsm_set_uapsd_param(struct cw1200_common *hw_priv,
 			const struct wsm_edca_params *arg);
 
 /* 3.38 */
@@ -1249,10 +1249,10 @@ struct wsm_switch_channel {
 	/* [in] */ u16 newChannelNumber;
 };
 
-int wsm_switch_channel(struct xradio_common *hw_priv,
+int wsm_switch_channel(struct cw1200_common *hw_priv,
 		       const struct wsm_switch_channel *arg, int if_id);
 
-typedef void (*wsm_channel_switch_cb) (struct xradio_common *hw_priv);
+typedef void (*wsm_channel_switch_cb) (struct cw1200_common *hw_priv);
 
 struct wsm_start {
 	/* WSM_START_MODE_... */
@@ -1292,7 +1292,7 @@ struct wsm_start {
 	/* [in] */ u32 basicRateSet;
 };
 
-int wsm_start(struct xradio_common *hw_priv, const struct wsm_start *arg,
+int wsm_start(struct cw1200_common *hw_priv, const struct wsm_start *arg,
 		int if_id);
 
 #if 0
@@ -1301,16 +1301,16 @@ struct wsm_beacon_transmit {
 	/* [in] */ u8 enableBeaconing;
 };
 
-int wsm_beacon_transmit(struct xradio_common *hw_priv,
+int wsm_beacon_transmit(struct cw1200_common *hw_priv,
 			const struct wsm_beacon_transmit *arg,
 			int if_id);
 #endif
 
-int wsm_start_find(struct xradio_common *hw_priv, int if_id);
+int wsm_start_find(struct cw1200_common *hw_priv, int if_id);
 
-int wsm_stop_find(struct xradio_common *hw_priv, int if_id);
+int wsm_stop_find(struct cw1200_common *hw_priv, int if_id);
 
-typedef void (*wsm_find_complete_cb) (struct xradio_common *hw_priv,
+typedef void (*wsm_find_complete_cb) (struct cw1200_common *hw_priv,
 				      u32 status);
 
 struct wsm_suspend_resume {
@@ -1328,7 +1328,7 @@ struct wsm_suspend_resume {
 	/* [out] */ int if_id;
 };
 
-typedef void (*wsm_suspend_resume_cb) (struct xradio_vif *priv,
+typedef void (*wsm_suspend_resume_cb) (struct cw1200_vif *priv,
 				       struct wsm_suspend_resume *arg);
 
 /* 3.54 Update-IE request. */
@@ -1340,7 +1340,7 @@ struct wsm_update_ie {
 	/* [in] */ size_t length;
 };
 
-int wsm_update_ie(struct xradio_common *hw_priv,
+int wsm_update_ie(struct cw1200_common *hw_priv,
 		  const struct wsm_update_ie *arg, int if_id);
 
 /* 3.56 */
@@ -1351,7 +1351,7 @@ struct wsm_map_link {
 	/* [in] */ u8 link_id;
 };
 
-int wsm_map_link(struct xradio_common *hw_priv, const struct wsm_map_link *arg,
+int wsm_map_link(struct cw1200_common *hw_priv, const struct wsm_map_link *arg,
 		int if_id);
 
 struct wsm_cbc {
@@ -1367,13 +1367,13 @@ struct wsm_cbc {
 #ifdef MCAST_FWDING
 
 /* 3.65	Give Buffer Request */
-int wsm_init_release_buffer_request(struct xradio_common *priv, u8 index);
+int wsm_init_release_buffer_request(struct cw1200_common *priv, u8 index);
 
 /* 3.65 fixed memory leakage by yangfh*/
-int wsm_deinit_release_buffer(struct xradio_common *hw_priv);
+int wsm_deinit_release_buffer(struct cw1200_common *hw_priv);
 
 /* 3.67	Request Buffer Request */
-int wsm_request_buffer_request(struct xradio_vif *priv,
+int wsm_request_buffer_request(struct cw1200_vif *priv,
                                 u8 *arg);
 #endif
 /* ******************************************************************** */
@@ -1593,13 +1593,13 @@ typedef struct MEASUREMENT_COMPLETE_S
 }MEASUREMENT_COMPLETE; // Note: must be 32 bit aligned
 
 #endif
-int wsm_11k_measure_requset(struct xradio_common  *hw_priv,
+int wsm_11k_measure_requset(struct cw1200_common  *hw_priv,
                                                u8  measure_type,
                                               u16  ChannelNum,
                                               u16  Duration);
 
 
-static inline int wsm_set_fw_debug_control(struct xradio_common *hw_priv,
+static inline int wsm_set_fw_debug_control(struct cw1200_common *hw_priv,
 				       int debug_control, int if_id)
 {
 	__le32 val = __cpu_to_le32(debug_control);
@@ -1607,14 +1607,14 @@ static inline int wsm_set_fw_debug_control(struct xradio_common *hw_priv,
 			     &val, sizeof(val), if_id);
 }
 
-static inline int wsm_set_host_sleep(struct xradio_common *hw_priv,
+static inline int wsm_set_host_sleep(struct cw1200_common *hw_priv,
 				       u8 host_sleep, int if_id)
 {
 	return wsm_write_mib(hw_priv, WSM_MIB_ID_SET_HOST_SLEEP,
 			     &host_sleep, sizeof(host_sleep), if_id);
 }
 
-static inline int wsm_set_output_power(struct xradio_common *hw_priv,
+static inline int wsm_set_output_power(struct cw1200_common *hw_priv,
 				       int power_level, int if_id)
 {
 	__le32 val = __cpu_to_le32(power_level);
@@ -1622,7 +1622,7 @@ static inline int wsm_set_output_power(struct xradio_common *hw_priv,
 			     &val, sizeof(val), if_id);
 }
 
-static inline int wsm_set_beacon_wakeup_period(struct xradio_common *hw_priv,
+static inline int wsm_set_beacon_wakeup_period(struct cw1200_common *hw_priv,
 					       unsigned dtim_interval,
 					       unsigned listen_interval,
 					       int if_id)
@@ -1647,7 +1647,7 @@ struct wsm_rcpi_rssi_threshold {
 	u8 rollingAverageCount;
 };
 
-static inline int wsm_set_rcpi_rssi_threshold(struct xradio_common *hw_priv,
+static inline int wsm_set_rcpi_rssi_threshold(struct cw1200_common *hw_priv,
 					struct wsm_rcpi_rssi_threshold *arg,
 					int if_id)
 {
@@ -1752,48 +1752,48 @@ struct wsm_tala_para {
     u32 para;
     u32 thresh;
 };
-static inline int wsm_get_counters_table(struct xradio_common *hw_priv,
+static inline int wsm_get_counters_table(struct cw1200_common *hw_priv,
 					 struct wsm_counters_table *arg)
 {
 	return wsm_read_mib(hw_priv, WSM_MIB_ID_COUNTERS_TABLE,
 			arg, sizeof(*arg), 0);
 }
 
-static inline int wsm_get_ampducounters_table(struct xradio_common *hw_priv,
+static inline int wsm_get_ampducounters_table(struct cw1200_common *hw_priv,
 					 struct wsm_ampducounters_table *arg)
 {
 	return wsm_read_mib(hw_priv, WSM_MIB_ID_AMPDUCOUNTERS_TABLE,
 			arg, sizeof(*arg), 0);
 }
 
-static inline int wsm_get_txpipe_table(struct xradio_common *hw_priv,
+static inline int wsm_get_txpipe_table(struct cw1200_common *hw_priv,
 					 struct wsm_txpipe_counter *arg)
 {
 	return wsm_read_mib(hw_priv, WSM_MIB_ID_TXPIPE_TABLE,
 			arg, sizeof(*arg), 0);
 }
 
-static inline int wsm_get_backoff_dbg(struct xradio_common *hw_priv,
+static inline int wsm_get_backoff_dbg(struct cw1200_common *hw_priv,
 					 struct wsm_backoff_counter *arg)
 {
 	return wsm_read_mib(hw_priv, WSM_MIB_ID_BACKOFF_DBG,
 			arg, sizeof(*arg), 0);
 }
 
-static inline int wsm_set_backoff_ctrl(struct xradio_common *hw_priv,
+static inline int wsm_set_backoff_ctrl(struct cw1200_common *hw_priv,
 					 struct wsm_backoff_ctrl *arg)
 {
 	return wsm_write_mib(hw_priv, WSM_MIB_ID_BACKOFF_CTRL,
 			arg, sizeof(*arg), 0);
 }
 
-static inline int wsm_set_tala(struct xradio_common *hw_priv,
+static inline int wsm_set_tala(struct cw1200_common *hw_priv,
 					 struct wsm_tala_para *arg)
 {
 	return wsm_write_mib(hw_priv, WSM_MIB_ID_SET_TALA_PARA,
 			arg, sizeof(*arg), 0);
 }
-static inline int wsm_get_station_id(struct xradio_common *hw_priv, u8 *mac)
+static inline int wsm_get_station_id(struct cw1200_common *hw_priv, u8 *mac)
 {
 	return wsm_read_mib(hw_priv, WSM_MIB_ID_DOT11_STATION_ID, mac,
 			    ETH_ALEN, 0);
@@ -1807,7 +1807,7 @@ struct wsm_rx_filter {
 	bool keepalive;
 };
 
-static inline int wsm_set_rx_filter(struct xradio_common *hw_priv,
+static inline int wsm_set_rx_filter(struct cw1200_common *hw_priv,
 				    const struct wsm_rx_filter *arg,
 				    int if_id)
 {
@@ -1826,8 +1826,8 @@ static inline int wsm_set_rx_filter(struct xradio_common *hw_priv,
 			if_id);
 }
 
-int wsm_set_probe_responder(struct xradio_vif *priv, bool enable);
-int wsm_set_keepalive_filter(struct xradio_vif *priv, bool enable);
+int wsm_set_probe_responder(struct cw1200_vif *priv, bool enable);
+int wsm_set_keepalive_filter(struct cw1200_vif *priv, bool enable);
 
 #define WSM_BEACON_FILTER_IE_HAS_CHANGED	BIT(0)
 #define WSM_BEACON_FILTER_IE_NO_LONGER_PRESENT	BIT(1)
@@ -1845,7 +1845,7 @@ struct wsm_beacon_filter_table {
 	struct wsm_beacon_filter_table_entry entry[10];
 } __packed;
 
-static inline int wsm_set_beacon_filter_table(struct xradio_common *hw_priv,
+static inline int wsm_set_beacon_filter_table(struct cw1200_common *hw_priv,
 					struct wsm_beacon_filter_table *ft,
 					int if_id)
 {
@@ -1865,7 +1865,7 @@ struct wsm_beacon_filter_control {
 	int bcn_count;
 };
 
-static inline int wsm_beacon_filter_control(struct xradio_common *hw_priv,
+static inline int wsm_beacon_filter_control(struct cw1200_common *hw_priv,
 					struct wsm_beacon_filter_control *arg,
 					int if_id)
 {
@@ -1895,7 +1895,7 @@ struct wsm_operational_mode {
 extern u8 low_pwr_disable;
 #endif
 
-static inline int wsm_set_operational_mode(struct xradio_common *hw_priv,
+static inline int wsm_set_operational_mode(struct cw1200_common *hw_priv,
 					const struct wsm_operational_mode *arg,
 					int if_id)
 {
@@ -1919,7 +1919,7 @@ struct wsm_inactivity {
 	u8 min_inactivity;
 };
 
-static inline int wsm_set_inactivity(struct xradio_common *hw_priv,
+static inline int wsm_set_inactivity(struct cw1200_common *hw_priv,
 					const struct wsm_inactivity *arg,
 					int if_id)
 {
@@ -1944,7 +1944,7 @@ struct wsm_template_frame {
 	struct sk_buff *skb;
 };
 
-static inline int wsm_set_template_frame(struct xradio_common *hw_priv,
+static inline int wsm_set_template_frame(struct cw1200_common *hw_priv,
 					 struct wsm_template_frame *arg,
 					 int if_id)
 {
@@ -1970,7 +1970,7 @@ struct wsm_protected_mgmt_policy {
 };
 
 static inline int
-wsm_set_protected_mgmt_policy(struct xradio_common *hw_priv,
+wsm_set_protected_mgmt_policy(struct cw1200_common *hw_priv,
 			      struct wsm_protected_mgmt_policy *arg,
 			      int if_id)
 {
@@ -1987,7 +1987,7 @@ wsm_set_protected_mgmt_policy(struct xradio_common *hw_priv,
 	return ret;
 }
 
-static inline int wsm_set_block_ack_policy(struct xradio_common *hw_priv,
+static inline int wsm_set_block_ack_policy(struct cw1200_common *hw_priv,
 					   u8 blockAckTxTidPolicy,
 					   u8 blockAckRxTidPolicy,
 					   int if_id)
@@ -2013,7 +2013,7 @@ struct wsm_association_mode {
 	__le32 basicRateSet;
 };
 
-static inline int wsm_set_association_mode(struct xradio_common *hw_priv,
+static inline int wsm_set_association_mode(struct cw1200_common *hw_priv,
 					   struct wsm_association_mode *arg,
 					   int if_id)
 {
@@ -2041,7 +2041,7 @@ struct wsm_set_tx_rate_retry_policy {
 	struct wsm_set_tx_rate_retry_policy_policy tbl[8];
 } __packed;
 
-static inline int wsm_set_tx_rate_retry_policy(struct xradio_common *hw_priv,
+static inline int wsm_set_tx_rate_retry_policy(struct cw1200_common *hw_priv,
 				struct wsm_set_tx_rate_retry_policy *arg,
 				int if_id)
 {
@@ -2064,7 +2064,7 @@ struct wsm_ether_type_filter {
 	__le16 etherType;	/* Type of ethernet frame */
 } __packed;
 
-static inline int wsm_set_ether_type_filter(struct xradio_common *hw_priv,
+static inline int wsm_set_ether_type_filter(struct cw1200_common *hw_priv,
 				struct wsm_ether_type_filter_hdr *arg,
 				int if_id)
 {
@@ -2087,7 +2087,7 @@ struct wsm_udp_port_filter {
 	__le16 udpPort;		/* Port number */
 } __packed;
 
-static inline int wsm_set_udp_port_filter(struct xradio_common *hw_priv,
+static inline int wsm_set_udp_port_filter(struct cw1200_common *hw_priv,
 				struct wsm_udp_port_filter_hdr *arg,
 				int if_id)
 {
@@ -2168,7 +2168,7 @@ struct wsm_keep_alive_period {
 	u8 reserved[2];
 } __packed;
 
-static inline int wsm_keep_alive_period(struct xradio_common *hw_priv,
+static inline int wsm_keep_alive_period(struct cw1200_common *hw_priv,
 					int period, int if_id)
 {
 	struct wsm_keep_alive_period arg = {
@@ -2184,7 +2184,7 @@ struct wsm_set_bssid_filtering {
 	u8 reserved[3];
 } __packed;
 
-static inline int wsm_set_bssid_filtering(struct xradio_common *hw_priv,
+static inline int wsm_set_bssid_filtering(struct cw1200_common *hw_priv,
 					  bool enabled, int if_id)
 {
 	struct wsm_set_bssid_filtering arg = {
@@ -2225,7 +2225,7 @@ struct wsm_broadcast_addr_filter {
 	u8 MacAddr[6];
 } __packed;
 
-static inline int wsm_set_multicast_filter(struct xradio_common *hw_priv,
+static inline int wsm_set_multicast_filter(struct cw1200_common *hw_priv,
 					   struct wsm_multicast_filter *fp,
 					   int if_id)
 {
@@ -2262,7 +2262,7 @@ struct wsm_ipv6_filter {
 } __packed;
 #endif /*IPV6_FILTERING*/
 
-static inline int wsm_set_arp_ipv4_filter(struct xradio_common *hw_priv,
+static inline int wsm_set_arp_ipv4_filter(struct cw1200_common *hw_priv,
 					  struct wsm_arp_ipv4_filter *fp,
 					  int if_id)
 {
@@ -2271,7 +2271,7 @@ static inline int wsm_set_arp_ipv4_filter(struct xradio_common *hw_priv,
 }
 
 #ifdef IPV6_FILTERING
-static inline int wsm_set_ndp_ipv6_filter(struct xradio_common *priv,
+static inline int wsm_set_ndp_ipv6_filter(struct cw1200_common *priv,
 					  struct wsm_ndp_ipv6_filter *fp,
 					  int if_id)
 {
@@ -2291,7 +2291,7 @@ struct wsm_p2p_ps_modeinfo {
 	__le32	startTime;
 } __packed;
 
-static inline int wsm_set_p2p_ps_modeinfo(struct xradio_common *hw_priv,
+static inline int wsm_set_p2p_ps_modeinfo(struct cw1200_common *hw_priv,
 					  struct wsm_p2p_ps_modeinfo *mi,
 					  int if_id)
 {
@@ -2299,7 +2299,7 @@ static inline int wsm_set_p2p_ps_modeinfo(struct xradio_common *hw_priv,
 			     mi, sizeof(*mi), if_id);
 }
 
-static inline int wsm_get_p2p_ps_modeinfo(struct xradio_common *hw_priv,
+static inline int wsm_get_p2p_ps_modeinfo(struct cw1200_common *hw_priv,
 					  struct wsm_p2p_ps_modeinfo *mi)
 {
 	return wsm_read_mib(hw_priv, WSM_MIB_ID_P2P_PS_MODE_INFO,
@@ -2308,7 +2308,7 @@ static inline int wsm_get_p2p_ps_modeinfo(struct xradio_common *hw_priv,
 
 /* UseMultiTxConfMessage */
 
-static inline int wsm_use_multi_tx_conf(struct xradio_common *hw_priv,
+static inline int wsm_use_multi_tx_conf(struct cw1200_common *hw_priv,
 					bool enabled, int if_id)
 {
 	__le32 arg = enabled ? __cpu_to_le32(1) : 0;
@@ -2326,7 +2326,7 @@ struct wsm_uapsd_info {
 	__le16 autoTriggerStep;
 };
 
-static inline int wsm_set_uapsd_info(struct xradio_common *hw_priv,
+static inline int wsm_set_uapsd_info(struct cw1200_common *hw_priv,
 				     struct wsm_uapsd_info *arg,
 				     int if_id)
 {
@@ -2343,7 +2343,7 @@ struct wsm_override_internal_txrate {
 } __packed;
 
 static inline int
-wsm_set_override_internal_txrate(struct xradio_common *hw_priv,
+wsm_set_override_internal_txrate(struct cw1200_common *hw_priv,
 				     struct wsm_override_internal_txrate *arg,
 				     int if_id)
 {
@@ -2358,7 +2358,7 @@ struct wsm_forwarding_offload {
 	u8 reserved[2];
 } __packed;
 
-static inline int wsm_set_forwarding_offlad(struct xradio_common *hw_priv,
+static inline int wsm_set_forwarding_offlad(struct cw1200_common *hw_priv,
 				     struct wsm_forwarding_offload *arg,int if_id)
 {
 	return wsm_write_mib(hw_priv, WSM_MIB_ID_FORWARDING_OFFLOAD,
@@ -2369,21 +2369,21 @@ static inline int wsm_set_forwarding_offlad(struct xradio_common *hw_priv,
 /* ******************************************************************** */
 /* WSM TX port control							*/
 
-void wsm_lock_tx(struct xradio_common *hw_priv);
-void wsm_vif_lock_tx(struct xradio_vif *priv);
-void wsm_lock_tx_async(struct xradio_common *hw_priv);
-bool wsm_flush_tx(struct xradio_common *hw_priv);
-bool wsm_vif_flush_tx(struct xradio_vif *priv);
-void wsm_unlock_tx(struct xradio_common *hw_priv);
+void wsm_lock_tx(struct cw1200_common *hw_priv);
+void wsm_vif_lock_tx(struct cw1200_vif *priv);
+void wsm_lock_tx_async(struct cw1200_common *hw_priv);
+bool wsm_flush_tx(struct cw1200_common *hw_priv);
+bool wsm_vif_flush_tx(struct cw1200_vif *priv);
+void wsm_unlock_tx(struct cw1200_common *hw_priv);
 
 /* ******************************************************************** */
 /* WSM / BH API								*/
 
-int wsm_handle_exception(struct xradio_common *hw_priv, u8 * data, size_t len);
-int wsm_handle_rx(struct xradio_common *hw_priv, int id, struct wsm_hdr *wsm,
+int wsm_handle_exception(struct cw1200_common *hw_priv, u8 * data, size_t len);
+int wsm_handle_rx(struct cw1200_common *hw_priv, int id, struct wsm_hdr *wsm,
 		  struct sk_buff **skb_p);
-void wms_send_deauth_to_self(struct xradio_common *hw_priv, struct xradio_vif *priv);
-void wms_send_disassoc_to_self(struct xradio_common *hw_priv, struct xradio_vif *priv);
+void wms_send_deauth_to_self(struct cw1200_common *hw_priv, struct cw1200_vif *priv);
+void wms_send_disassoc_to_self(struct cw1200_common *hw_priv, struct cw1200_vif *priv);
 
 /* ******************************************************************** */
 /* wsm_buf API								*/
@@ -2413,9 +2413,9 @@ struct wsm_cmd {
 /* ******************************************************************** */
 /* WSM TX buffer access							*/
 
-int wsm_get_tx(struct xradio_common *hw_priv, u8 **data,
+int wsm_get_tx(struct cw1200_common *hw_priv, u8 **data,
 	       size_t *tx_len, int *burst, int *vif_selected);
-void wsm_txed(struct xradio_common *hw_priv, u8 *data);
+void wsm_txed(struct cw1200_common *hw_priv, u8 *data);
 
 /* ******************************************************************** */
 /* Queue mapping: WSM <---> linux					*/

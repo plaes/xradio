@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 
-#include "xradio.h"
+#include "cw1200.h"
 #include "hwio.h"
 #include "sbus.h"
 
@@ -27,7 +27,7 @@
 #define MAX_RETRY		3
 
 
-static int __xradio_read(struct xradio_common *hw_priv, u16 addr,
+static int __cw1200_read(struct cw1200_common *hw_priv, u16 addr,
                          void *buf, size_t buf_len, int buf_id)
 {
 	u16 addr_sdio;
@@ -50,7 +50,7 @@ static int __xradio_read(struct xradio_common *hw_priv, u16 addr,
 	                                         buf, buf_len);
 }
 
-static int __xradio_write(struct xradio_common *hw_priv, u16 addr,
+static int __cw1200_write(struct cw1200_common *hw_priv, u16 addr,
                               const void *buf, size_t buf_len, int buf_id)
 {
 	u16 addr_sdio;
@@ -74,41 +74,41 @@ static int __xradio_write(struct xradio_common *hw_priv, u16 addr,
 	                                          buf, buf_len);
 }
 
-static inline int __xradio_read_reg32(struct xradio_common *hw_priv,
+static inline int __cw1200_read_reg32(struct cw1200_common *hw_priv,
                                        u16 addr, u32 *val)
 {
-	return __xradio_read(hw_priv, addr, val, sizeof(val), 0);
+	return __cw1200_read(hw_priv, addr, val, sizeof(val), 0);
 }
 
-static inline int __xradio_write_reg32(struct xradio_common *hw_priv,
+static inline int __cw1200_write_reg32(struct cw1200_common *hw_priv,
                                         u16 addr, u32 val)
 {
-	return __xradio_write(hw_priv, addr, &val, sizeof(val), 0);
+	return __cw1200_write(hw_priv, addr, &val, sizeof(val), 0);
 }
 
-int xradio_reg_read(struct xradio_common *hw_priv, u16 addr, 
+int cw1200_reg_read(struct cw1200_common *hw_priv, u16 addr, 
                     void *buf, size_t buf_len)
 {
 	int ret;
 	SYS_BUG(!hw_priv->sbus_ops);
 	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
-	ret = __xradio_read(hw_priv, addr, buf, buf_len, 0);
+	ret = __cw1200_read(hw_priv, addr, buf, buf_len, 0);
 	hw_priv->sbus_ops->unlock(hw_priv->sbus_priv);
 	return ret;
 }
 
-int xradio_reg_write(struct xradio_common *hw_priv, u16 addr, 
+int cw1200_reg_write(struct cw1200_common *hw_priv, u16 addr, 
                      const void *buf, size_t buf_len)
 {
 	int ret;
 	SYS_BUG(!hw_priv->sbus_ops);
 	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
-	ret = __xradio_write(hw_priv, addr, buf, buf_len, 0);
+	ret = __cw1200_write(hw_priv, addr, buf, buf_len, 0);
 	hw_priv->sbus_ops->unlock(hw_priv->sbus_priv);
 	return ret;
 }
 
-int xradio_data_read(struct xradio_common *hw_priv, void *buf, size_t buf_len)
+int cw1200_data_read(struct cw1200_common *hw_priv, void *buf, size_t buf_len)
 {
 	int ret, retry = 1;
 	SYS_BUG(!hw_priv->sbus_ops);
@@ -116,7 +116,7 @@ int xradio_data_read(struct xradio_common *hw_priv, void *buf, size_t buf_len)
 	{
 		int buf_id_rx = hw_priv->buf_id_rx;
 		while (retry <= MAX_RETRY) {
-			ret = __xradio_read(hw_priv, HIF_IN_OUT_QUEUE_REG_ID, buf,
+			ret = __cw1200_read(hw_priv, HIF_IN_OUT_QUEUE_REG_ID, buf,
 			                    buf_len, buf_id_rx + 1);
 			if (!ret) {
 				buf_id_rx = (buf_id_rx + 1) & 3;
@@ -133,7 +133,7 @@ int xradio_data_read(struct xradio_common *hw_priv, void *buf, size_t buf_len)
 	return ret;
 }
 
-int xradio_data_write(struct xradio_common *hw_priv, const void *buf,
+int cw1200_data_write(struct cw1200_common *hw_priv, const void *buf,
                       size_t buf_len)
 {
 	int ret, retry = 1;
@@ -142,7 +142,7 @@ int xradio_data_write(struct xradio_common *hw_priv, const void *buf,
 	{
 		int buf_id_tx = hw_priv->buf_id_tx;
 		while (retry <= MAX_RETRY) {
-			ret = __xradio_write(hw_priv, HIF_IN_OUT_QUEUE_REG_ID, buf,
+			ret = __cw1200_write(hw_priv, HIF_IN_OUT_QUEUE_REG_ID, buf,
 			                     buf_len, buf_id_tx);
 			if (!ret) {
 				buf_id_tx = (buf_id_tx + 1) & 31;
@@ -159,7 +159,7 @@ int xradio_data_write(struct xradio_common *hw_priv, const void *buf,
 	return ret;
 }
 
-int xradio_indirect_read(struct xradio_common *hw_priv, u32 addr, void *buf,
+int cw1200_indirect_read(struct cw1200_common *hw_priv, u32 addr, void *buf,
                          size_t buf_len, u32 prefetch, u16 port_addr)
 {
 	u32 val32 = 0;
@@ -174,21 +174,21 @@ int xradio_indirect_read(struct xradio_common *hw_priv, u32 addr, void *buf,
 
 	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
 	/* Write address */
-	ret = __xradio_write_reg32(hw_priv, HIF_SRAM_BASE_ADDR_REG_ID, addr);
+	ret = __cw1200_write_reg32(hw_priv, HIF_SRAM_BASE_ADDR_REG_ID, addr);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't write address register.\n", __func__);
 		goto out;
 	}
 
 	/* Read CONFIG Register Value - We will read 32 bits */
-	ret = __xradio_read_reg32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+	ret = __cw1200_read_reg32(hw_priv, HIF_CONFIG_REG_ID, &val32);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't read config register.\n", __func__);
 		goto out;
 	}
 
 	/* Set PREFETCH bit */
-	ret = __xradio_write_reg32(hw_priv, HIF_CONFIG_REG_ID, val32 | prefetch);
+	ret = __cw1200_write_reg32(hw_priv, HIF_CONFIG_REG_ID, val32 | prefetch);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't write prefetch bit.\n", __func__);
 		goto out;
@@ -196,7 +196,7 @@ int xradio_indirect_read(struct xradio_common *hw_priv, u32 addr, void *buf,
 
 	/* Check for PRE-FETCH bit to be cleared */
 	for (i = 0; i < 20; i++) {
-		ret = __xradio_read_reg32(hw_priv, HIF_CONFIG_REG_ID, &val32);
+		ret = __cw1200_read_reg32(hw_priv, HIF_CONFIG_REG_ID, &val32);
 		if (ret < 0) {
 			sbus_printk(XRADIO_DBG_ERROR, "%s: Can't check prefetch bit.\n", __func__);
 			goto out;
@@ -212,7 +212,7 @@ int xradio_indirect_read(struct xradio_common *hw_priv, u32 addr, void *buf,
 	}
 
 	/* Read data port */
-	ret = __xradio_read(hw_priv, port_addr, buf, buf_len, 0);
+	ret = __cw1200_read(hw_priv, port_addr, buf, buf_len, 0);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't read data port.\n", __func__);
 		goto out;
@@ -223,7 +223,7 @@ out:
 	return ret;
 }
 
-int xradio_apb_write(struct xradio_common *hw_priv, u32 addr, const void *buf,
+int cw1200_apb_write(struct cw1200_common *hw_priv, u32 addr, const void *buf,
                      size_t buf_len)
 {
 	int ret;
@@ -236,14 +236,14 @@ int xradio_apb_write(struct xradio_common *hw_priv, u32 addr, const void *buf,
 	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
 
 	/* Write address */
-	ret = __xradio_write_reg32(hw_priv, HIF_SRAM_BASE_ADDR_REG_ID, addr);
+	ret = __cw1200_write_reg32(hw_priv, HIF_SRAM_BASE_ADDR_REG_ID, addr);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't write address register.\n", __func__);
 		goto out;
 	}
 
 	/* Write data port */
-	ret = __xradio_write(hw_priv, HIF_SRAM_DPORT_REG_ID, buf, buf_len, 0);
+	ret = __cw1200_write(hw_priv, HIF_SRAM_DPORT_REG_ID, buf, buf_len, 0);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't write data port.\n", __func__);
 		goto out;
@@ -254,7 +254,7 @@ out:
 	return ret;
 }
 
-int xradio_ahb_write(struct xradio_common *hw_priv, u32 addr, const void *buf,
+int cw1200_ahb_write(struct cw1200_common *hw_priv, u32 addr, const void *buf,
                      size_t buf_len)
 {
 	int ret;
@@ -267,14 +267,14 @@ int xradio_ahb_write(struct xradio_common *hw_priv, u32 addr, const void *buf,
 	hw_priv->sbus_ops->lock(hw_priv->sbus_priv);
 	
 	/* Write address */
-	ret = __xradio_write_reg32(hw_priv, HIF_SRAM_BASE_ADDR_REG_ID, addr);
+	ret = __cw1200_write_reg32(hw_priv, HIF_SRAM_BASE_ADDR_REG_ID, addr);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't write address register.\n", __func__);
 		goto out;
 	}
 
 	/* Write data port */
-	ret = __xradio_write(hw_priv, HIF_AHB_DPORT_REG_ID, buf, buf_len, 0);
+	ret = __cw1200_write(hw_priv, HIF_AHB_DPORT_REG_ID, buf, buf_len, 0);
 	if (ret < 0) {
 		sbus_printk(XRADIO_DBG_ERROR, "%s: Can't write data port.\n", __func__);
 		goto out;

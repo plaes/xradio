@@ -11,13 +11,13 @@
 
 #include <net/mac80211.h>
 #include <linux/sched.h>
-#include "xradio.h"
+#include "cw1200.h"
 #include "queue.h"
 #ifdef CONFIG_XRADIO_TESTMODE
 #include <linux/time.h>
 #endif /*CONFIG_XRADIO_TESTMODE*/
 
-/* private */ struct xradio_queue_item
+/* private */ struct cw1200_queue_item
 {
 	struct list_head	head;
 	struct sk_buff		*skb;
@@ -28,14 +28,14 @@
 	unsigned long		mdelay_timestamp;
 	unsigned long		qdelay_timestamp;
 #endif /*CONFIG_XRADIO_TESTMODE*/
-	struct xradio_txpriv	txpriv;
+	struct cw1200_txpriv	txpriv;
 	u8			generation;
 	u8			pack_stk_wr;
 };
 
-static inline void __xradio_queue_lock(struct xradio_queue *queue)
+static inline void __cw1200_queue_lock(struct cw1200_queue *queue)
 {
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_stats *stats = queue->stats;
 	if (queue->tx_locked_cnt++ == 0) {
 		txrx_printk(XRADIO_DBG_MSG, "[TX] Queue %d is locked.\n",
 				queue->queue_id);
@@ -43,9 +43,9 @@ static inline void __xradio_queue_lock(struct xradio_queue *queue)
 	}
 }
 
-static inline void __xradio_queue_unlock(struct xradio_queue *queue)
+static inline void __cw1200_queue_unlock(struct cw1200_queue *queue)
 {
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_stats *stats = queue->stats;
 	SYS_BUG(!queue->tx_locked_cnt);
 	if (--queue->tx_locked_cnt == 0) {
 		txrx_printk(XRADIO_DBG_MSG, "[TX] Queue %d is unlocked.\n",
@@ -54,7 +54,7 @@ static inline void __xradio_queue_unlock(struct xradio_queue *queue)
 	}
 }
 
-static inline void xradio_queue_parse_id(u32 packetID, u8 *queue_generation,
+static inline void cw1200_queue_parse_id(u32 packetID, u8 *queue_generation,
 						u8 *queue_id,
 						u8 *item_generation,
 						u8 *item_id,
@@ -69,7 +69,7 @@ static inline void xradio_queue_parse_id(u32 packetID, u8 *queue_generation,
 	*queue_generation	= (packetID >> 28) & 0xF;
 }
 
-static inline u32 xradio_queue_make_packet_id(u8 queue_generation, u8 queue_id,
+static inline u32 cw1200_queue_make_packet_id(u8 queue_generation, u8 queue_id,
 						u8 item_generation, u8 item_id,
 						u8 if_id, u8 link_id)
 {
@@ -82,44 +82,44 @@ static inline u32 xradio_queue_make_packet_id(u8 queue_generation, u8 queue_id,
 		((u32)queue_generation << 28);
 }
 
-static void xradio_queue_post_gc(struct xradio_queue_stats *stats,
+static void cw1200_queue_post_gc(struct cw1200_queue_stats *stats,
 				 struct list_head *gc_list)
 {
-	struct xradio_queue_item *item;
+	struct cw1200_queue_item *item;
 
 	while (!list_empty(gc_list)) {
 		item = list_first_entry(
-			gc_list, struct xradio_queue_item, head);
+			gc_list, struct cw1200_queue_item, head);
 		list_del(&item->head);
 		stats->skb_dtor(stats->hw_priv, item->skb, &item->txpriv);
 		kfree(item);
 	}
 }
 
-static void xradio_queue_register_post_gc(struct list_head *gc_list,
-				     struct xradio_queue_item *item)
+static void cw1200_queue_register_post_gc(struct list_head *gc_list,
+				     struct cw1200_queue_item *item)
 {
-	struct xradio_queue_item *gc_item;
-	gc_item = xr_kmalloc(sizeof(struct xradio_queue_item), false);
+	struct cw1200_queue_item *gc_item;
+	gc_item = xr_kmalloc(sizeof(struct cw1200_queue_item), false);
 	SYS_BUG(!gc_item);
-	memcpy(gc_item, item, sizeof(struct xradio_queue_item));
+	memcpy(gc_item, item, sizeof(struct cw1200_queue_item));
 	list_add_tail(&gc_item->head, gc_list);
 }
 
-static void __xradio_queue_gc(struct xradio_queue *queue,
+static void __cw1200_queue_gc(struct cw1200_queue *queue,
 			      struct list_head *head,
 			      bool unlock)
 {
-	struct xradio_queue_stats *stats = queue->stats;
-	struct xradio_queue_item *item = NULL;
-	//struct xradio_vif *priv;
+	struct cw1200_queue_stats *stats = queue->stats;
+	struct cw1200_queue_item *item = NULL;
+	//struct cw1200_vif *priv;
 	int if_id;
 	bool wakeup_stats = false;
 
 	while (!list_empty(&queue->queue)) {
-		struct xradio_txpriv *txpriv;
+		struct cw1200_txpriv *txpriv;
 		item = list_first_entry(
-			&queue->queue, struct xradio_queue_item, head);
+			&queue->queue, struct cw1200_queue_item, head);
 		if (time_before(jiffies, item->queue_timestamp+queue->ttl))
 			break;
 
@@ -135,10 +135,10 @@ static void __xradio_queue_gc(struct xradio_queue *queue,
 		spin_unlock_bh(&stats->lock);
 		//priv = xrwl_hwpriv_to_vifpriv(stats->hw_priv, if_id);
 		//if (priv) {
-		//	xradio_debug_tx_ttl(priv);
+		//	cw1200_debug_tx_ttl(priv);
 		//	spin_unlock(&priv->vif_lock);
 		//}
-		xradio_queue_register_post_gc(head, item);
+		cw1200_queue_register_post_gc(head, item);
 		item->skb = NULL;
 		list_move_tail(&item->head, &queue->free_pool);
 	}
@@ -152,33 +152,33 @@ static void __xradio_queue_gc(struct xradio_queue *queue,
 						stats->hw_priv->vif1_throttle+2)>>1)) {
 			queue->overfull = false;
 			if (unlock) {
-				__xradio_queue_unlock(queue);
+				__cw1200_queue_unlock(queue);
 			}
 		} else if (item) {
 			unsigned long tmo = item->queue_timestamp + queue->ttl;
 			mod_timer(&queue->gc, tmo);
-			xradio_pm_stay_awake(&stats->hw_priv->pm_state,
+			cw1200_pm_stay_awake(&stats->hw_priv->pm_state,
 					tmo - jiffies);
 		}
 	}
 }
 
-static void xradio_queue_gc(unsigned long arg)
+static void cw1200_queue_gc(unsigned long arg)
 {
 	LIST_HEAD(list);
-	struct xradio_queue *queue =
-		(struct xradio_queue *)arg;
+	struct cw1200_queue *queue =
+		(struct cw1200_queue *)arg;
 
 	spin_lock_bh(&queue->lock);
-	__xradio_queue_gc(queue, &list, true);
+	__cw1200_queue_gc(queue, &list, true);
 	spin_unlock_bh(&queue->lock);
-	xradio_queue_post_gc(queue->stats, &list);
+	cw1200_queue_post_gc(queue->stats, &list);
 }
 
-int xradio_queue_stats_init(struct xradio_queue_stats *stats,
+int cw1200_queue_stats_init(struct cw1200_queue_stats *stats,
 			    size_t map_capacity,
-			    xradio_queue_skb_dtor_t skb_dtor,
-			    struct xradio_common *hw_priv)
+			    cw1200_queue_skb_dtor_t skb_dtor,
+			    struct cw1200_common *hw_priv)
 {
 	int i;
 
@@ -200,8 +200,8 @@ int xradio_queue_stats_init(struct xradio_queue_stats *stats,
 	return 0;
 }
 
-int xradio_queue_init(struct xradio_queue *queue,
-		      struct xradio_queue_stats *stats,
+int cw1200_queue_init(struct cw1200_queue *queue,
+		      struct cw1200_queue_stats *stats,
 		      u8 queue_id,
 		      size_t capacity,
 		      unsigned long ttl)
@@ -219,9 +219,9 @@ int xradio_queue_init(struct xradio_queue *queue,
 	spin_lock_init(&queue->lock);
 	init_timer(&queue->gc);
 	queue->gc.data = (unsigned long)queue;
-	queue->gc.function = xradio_queue_gc;
+	queue->gc.function = cw1200_queue_gc;
 
-	queue->pool = xr_kzalloc(sizeof(struct xradio_queue_item) * capacity,
+	queue->pool = xr_kzalloc(sizeof(struct cw1200_queue_item) * capacity,
 	                         false);
 	if (!queue->pool)
 		return -ENOMEM;
@@ -245,10 +245,10 @@ int xradio_queue_init(struct xradio_queue *queue,
 }
 
 /* TODO:COMBO: Flush only a particular interface specific parts */
-int xradio_queue_clear(struct xradio_queue *queue, int if_id)
+int cw1200_queue_clear(struct cw1200_queue *queue, int if_id)
 {
 	int i, cnt, iter;
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_stats *stats = queue->stats;
 	LIST_HEAD(gc_list);
 
 	cnt = 0;
@@ -257,11 +257,11 @@ int xradio_queue_clear(struct xradio_queue *queue, int if_id)
 	queue->generation &= 0xf;
 	list_splice_tail_init(&queue->queue, &queue->pending);
 	while (!list_empty(&queue->pending)) {
-		struct xradio_queue_item *item = list_first_entry(
-			&queue->pending, struct xradio_queue_item, head);
+		struct cw1200_queue_item *item = list_first_entry(
+			&queue->pending, struct cw1200_queue_item, head);
 		SYS_WARN(!item->skb);
 		if (XRWL_ALL_IFS == if_id || item->txpriv.if_id == if_id) {
-			xradio_queue_register_post_gc(&gc_list, item);
+			cw1200_queue_register_post_gc(&gc_list, item);
 			item->skb = NULL;
 			list_move_tail(&item->head, &queue->free_pool);
 			cnt++;
@@ -301,15 +301,15 @@ int xradio_queue_clear(struct xradio_queue *queue, int if_id)
 	spin_unlock_bh(&stats->lock);
 	if (unlikely(queue->overfull)) {
 		queue->overfull = false;
-		__xradio_queue_unlock(queue);
+		__cw1200_queue_unlock(queue);
 	}
 	spin_unlock_bh(&queue->lock);
 	wake_up(&stats->wait_link_id_empty);
-	xradio_queue_post_gc(stats, &gc_list);
+	cw1200_queue_post_gc(stats, &gc_list);
 	return 0;
 }
 
-void xradio_queue_stats_deinit(struct xradio_queue_stats *stats)
+void cw1200_queue_stats_deinit(struct cw1200_queue_stats *stats)
 {
 	int i;
 
@@ -319,11 +319,11 @@ void xradio_queue_stats_deinit(struct xradio_queue_stats *stats)
 	}
 }
 
-void xradio_queue_deinit(struct xradio_queue *queue)
+void cw1200_queue_deinit(struct cw1200_queue *queue)
 {
 	int i;
 
-	xradio_queue_clear(queue, XRWL_ALL_IFS);
+	cw1200_queue_clear(queue, XRWL_ALL_IFS);
 	del_timer_sync(&queue->gc);
 	INIT_LIST_HEAD(&queue->free_pool);
 	kfree(queue->pool);
@@ -335,8 +335,8 @@ void xradio_queue_deinit(struct xradio_queue *queue)
 	queue->capacity = 0;
 }
 
-size_t xradio_queue_get_num_queued(struct xradio_vif *priv,
-				   struct xradio_queue *queue,
+size_t cw1200_queue_get_num_queued(struct cw1200_vif *priv,
+				   struct cw1200_queue *queue,
 				   u32 link_id_map)
 {
 	size_t ret;
@@ -362,15 +362,15 @@ size_t xradio_queue_get_num_queued(struct xradio_vif *priv,
 	return ret;
 }
 
-int xradio_queue_put(struct xradio_queue *queue, struct sk_buff *skb,
-                     struct xradio_txpriv *txpriv)
+int cw1200_queue_put(struct cw1200_queue *queue, struct sk_buff *skb,
+                     struct cw1200_txpriv *txpriv)
 {
 	int ret = 0;
 #ifdef CONFIG_XRADIO_TESTMODE
 	struct timeval tmval;
 #endif /*CONFIG_XRADIO_TESTMODE*/
 	LIST_HEAD(gc_list);
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_stats *stats = queue->stats;
 	/* TODO:COMBO: Add interface ID info to queue item */
 
 	if (txpriv->link_id >= queue->stats->map_capacity)
@@ -378,8 +378,8 @@ int xradio_queue_put(struct xradio_queue *queue, struct sk_buff *skb,
 
 	spin_lock_bh(&queue->lock);
 	if (!SYS_WARN(list_empty(&queue->free_pool))) {
-		struct xradio_queue_item *item = list_first_entry(
-			&queue->free_pool, struct xradio_queue_item, head);
+		struct cw1200_queue_item *item = list_first_entry(
+			&queue->free_pool, struct cw1200_queue_item, head);
 		SYS_BUG(item->skb);
 
 		list_move_tail(&item->head, &queue->queue);
@@ -387,7 +387,7 @@ int xradio_queue_put(struct xradio_queue *queue, struct sk_buff *skb,
 		item->txpriv = *txpriv;
 		item->generation  = 1; /* avoid packet ID is 0.*/
 		item->pack_stk_wr = 0;
-		item->packetID = xradio_queue_make_packet_id(
+		item->packetID = cw1200_queue_make_packet_id(
 			queue->generation, queue->queue_id,
 			item->generation, item - queue->pool,
 			txpriv->if_id, txpriv->raw_link_id);
@@ -423,7 +423,7 @@ int xradio_queue_put(struct xradio_queue *queue, struct sk_buff *skb,
 		((stats->hw_priv->vif0_throttle +stats->hw_priv->vif1_throttle)
 				- (num_present_cpus() - 1))) {
 			queue->overfull = true;
-			__xradio_queue_lock(queue);
+			__cw1200_queue_lock(queue);
 			mod_timer(&queue->gc, jiffies);
 			txrx_printk(XRADIO_DBG_NIY,"!lock queue\n");
 		}
@@ -442,16 +442,16 @@ int xradio_queue_put(struct xradio_queue *queue, struct sk_buff *skb,
 	return ret;
 }
 
-int xradio_queue_get(struct xradio_queue *queue,
+int cw1200_queue_get(struct cw1200_queue *queue,
 			int if_id,
 		     u32 link_id_map,
 		     struct wsm_tx **tx,
 		     struct ieee80211_tx_info **tx_info,
-		     struct xradio_txpriv **txpriv)
+		     struct cw1200_txpriv **txpriv)
 {
 	int ret = -ENOENT;
-	struct xradio_queue_item *item;
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_item *item;
+	struct cw1200_queue_stats *stats = queue->stats;
 	bool wakeup_stats = false;
 #ifdef CONFIG_XRADIO_TESTMODE
 	struct timeval tmval;
@@ -507,18 +507,18 @@ int xradio_queue_get(struct xradio_queue *queue,
 }
 
 #ifdef CONFIG_XRADIO_TESTMODE
-int xradio_queue_requeue(struct xradio_common *hw_priv,
-	struct xradio_queue *queue, u32 packetID, bool check)
+int cw1200_queue_requeue(struct cw1200_common *hw_priv,
+	struct cw1200_queue *queue, u32 packetID, bool check)
 #else
-int xradio_queue_requeue(struct xradio_queue *queue, u32 packetID, bool check)
+int cw1200_queue_requeue(struct cw1200_queue *queue, u32 packetID, bool check)
 #endif
 {
 	int ret = 0;
 	u8 queue_generation, queue_id, item_generation, item_id, if_id, link_id;
-	struct xradio_queue_item *item;
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_item *item;
+	struct cw1200_queue_stats *stats = queue->stats;
 
-	xradio_queue_parse_id(packetID, &queue_generation, &queue_id,
+	cw1200_queue_parse_id(packetID, &queue_generation, &queue_id,
 				&item_generation, &item_id, &if_id, &link_id);
 
 	item = &queue->pool[item_id];
@@ -530,9 +530,9 @@ int xradio_queue_requeue(struct xradio_queue *queue, u32 packetID, bool check)
 		txrx_printk(XRADIO_DBG_MSG, "Requeued frame dropped for "
 						"generic interface id.\n");
 #ifdef CONFIG_XRADIO_TESTMODE
-		xradio_queue_remove(hw_priv, queue, packetID);
+		cw1200_queue_remove(hw_priv, queue, packetID);
 #else
-		xradio_queue_remove(queue, packetID);
+		cw1200_queue_remove(queue, packetID);
 #endif
 		return 0;
 	}
@@ -565,7 +565,7 @@ int xradio_queue_requeue(struct xradio_queue *queue, u32 packetID, bool check)
 		spin_unlock_bh(&stats->lock);
 
 		item->generation = ++item_generation;
-		item->packetID = xradio_queue_make_packet_id(
+		item->packetID = cw1200_queue_make_packet_id(
 			queue_generation, queue_id, item_generation, item_id,
 			if_id, link_id);
 		list_move(&item->head, &queue->queue);
@@ -583,13 +583,13 @@ int xradio_queue_requeue(struct xradio_queue *queue, u32 packetID, bool check)
 	return ret;
 }
 
-int xradio_queue_requeue_all(struct xradio_queue *queue)
+int cw1200_queue_requeue_all(struct cw1200_queue *queue)
 {
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_stats *stats = queue->stats;
 	spin_lock_bh(&queue->lock);
 	while (!list_empty(&queue->pending)) {
-		struct xradio_queue_item *item = list_entry(
-			queue->pending.prev, struct xradio_queue_item, head);
+		struct cw1200_queue_item *item = list_entry(
+			queue->pending.prev, struct cw1200_queue_item, head);
 
 		--queue->num_pending;
 		--queue->num_pending_vif[item->txpriv.if_id];
@@ -603,7 +603,7 @@ int xradio_queue_requeue_all(struct xradio_queue *queue)
 		spin_unlock_bh(&stats->lock);
 
 		++item->generation;
-		item->packetID = xradio_queue_make_packet_id(
+		item->packetID = cw1200_queue_make_packet_id(
 			queue->generation, queue->queue_id,
 			item->generation, item - queue->pool,
 			item->txpriv.if_id, item->txpriv.raw_link_id);
@@ -614,20 +614,20 @@ int xradio_queue_requeue_all(struct xradio_queue *queue)
 	return 0;
 }
 #ifdef CONFIG_XRADIO_TESTMODE
-int xradio_queue_remove(struct xradio_common *hw_priv,
-				struct xradio_queue *queue, u32 packetID)
+int cw1200_queue_remove(struct cw1200_common *hw_priv,
+				struct cw1200_queue *queue, u32 packetID)
 #else
-int xradio_queue_remove(struct xradio_queue *queue, u32 packetID)
+int cw1200_queue_remove(struct cw1200_queue *queue, u32 packetID)
 #endif /*CONFIG_XRADIO_TESTMODE*/
 {
 	int ret = 0;
 	u8 queue_generation, queue_id, item_generation, item_id, if_id, link_id;
-	struct xradio_queue_item *item;
-	struct xradio_queue_stats *stats = queue->stats;
+	struct cw1200_queue_item *item;
+	struct cw1200_queue_stats *stats = queue->stats;
 	struct sk_buff *gc_skb = NULL;
-	struct xradio_txpriv gc_txpriv;
+	struct cw1200_txpriv gc_txpriv;
 
-	xradio_queue_parse_id(packetID, &queue_generation, &queue_id,
+	cw1200_queue_parse_id(packetID, &queue_generation, &queue_id,
 				&item_generation, &item_id, &if_id, &link_id);
 
 	item = &queue->pool[item_id];
@@ -698,7 +698,7 @@ int xradio_queue_remove(struct xradio_queue *queue, u32 packetID)
 		if (unlikely(queue->overfull) &&
 		    (queue->num_queued <= ((stats->hw_priv->vif0_throttle + stats->hw_priv->vif1_throttle + 2)>>1))) {
 			queue->overfull = false;
-			__xradio_queue_unlock(queue);
+			__cw1200_queue_unlock(queue);
 		}
 	}
 	spin_unlock_bh(&queue->lock);
@@ -716,15 +716,15 @@ int xradio_queue_remove(struct xradio_queue *queue, u32 packetID)
 	return ret;
 }
 
-int xradio_queue_get_skb(struct xradio_queue *queue, u32 packetID,
+int cw1200_queue_get_skb(struct cw1200_queue *queue, u32 packetID,
 			 struct sk_buff **skb,
-			 const struct xradio_txpriv **txpriv)
+			 const struct cw1200_txpriv **txpriv)
 {
 	int ret = 0;
 	u8 queue_generation, queue_id, item_generation, item_id, if_id, link_id;
-	struct xradio_queue_item *item;
+	struct cw1200_queue_item *item;
 
-	xradio_queue_parse_id(packetID, &queue_generation, &queue_id,
+	cw1200_queue_parse_id(packetID, &queue_generation, &queue_id,
 				&item_generation, &item_id, &if_id, &link_id);
 
 	item = &queue->pool[item_id];
@@ -748,25 +748,25 @@ int xradio_queue_get_skb(struct xradio_queue *queue, u32 packetID,
 	return ret;
 }
 
-void xradio_queue_lock(struct xradio_queue *queue)
+void cw1200_queue_lock(struct cw1200_queue *queue)
 {
 	spin_lock_bh(&queue->lock);
-	__xradio_queue_lock(queue);
+	__cw1200_queue_lock(queue);
 	spin_unlock_bh(&queue->lock);
 }
 
-void xradio_queue_unlock(struct xradio_queue *queue)
+void cw1200_queue_unlock(struct cw1200_queue *queue)
 {
 	spin_lock_bh(&queue->lock);
-	__xradio_queue_unlock(queue);
+	__cw1200_queue_unlock(queue);
 	spin_unlock_bh(&queue->lock);
 }
 
-bool xradio_queue_get_xmit_timestamp(struct xradio_queue *queue,
+bool cw1200_queue_get_xmit_timestamp(struct cw1200_queue *queue,
 				     unsigned long *timestamp, int if_id,
 				     u32 pending_frameID, u32 *Old_frame_ID)
 {
-	struct xradio_queue_item *item;
+	struct cw1200_queue_item *item;
 	bool ret;
 
 	spin_lock_bh(&queue->lock);
@@ -789,7 +789,7 @@ bool xradio_queue_get_xmit_timestamp(struct xradio_queue *queue,
 	return ret;
 }
 
-bool xradio_queue_stats_is_empty(struct xradio_queue_stats *stats,
+bool cw1200_queue_stats_is_empty(struct cw1200_queue_stats *stats,
 				 u32 link_id_map, int if_id)
 {
 	bool empty = true;
@@ -815,16 +815,16 @@ bool xradio_queue_stats_is_empty(struct xradio_queue_stats *stats,
 	return empty;
 }
 
-bool xradio_query_txpkt_timeout(struct xradio_common *hw_priv, int if_id,
+bool cw1200_query_txpkt_timeout(struct cw1200_common *hw_priv, int if_id,
                                 u32 pending_pkt_id, long *timeout)
 {
 	int i;
 	bool pending = false;
 	unsigned long timestamp = jiffies;
-	struct xradio_queue      *queue = NULL;
-	struct xradio_queue_item *item  = NULL;
-	struct xradio_queue      *old_queue = NULL;
-	struct xradio_queue_item *old_item  = NULL;
+	struct cw1200_queue      *queue = NULL;
+	struct cw1200_queue_item *item  = NULL;
+	struct cw1200_queue      *old_queue = NULL;
+	struct cw1200_queue_item *old_item  = NULL;
 	u8 pack_stk_wr = 0;
 
 	/* Get oldest frame.*/
@@ -857,7 +857,7 @@ bool xradio_query_txpkt_timeout(struct xradio_common *hw_priv, int if_id,
 	*timeout = timestamp + WSM_CMD_LAST_CHANCE_TIMEOUT - jiffies;
 	if (unlikely(*timeout < 0) && !pack_stk_wr) {
 		struct ieee80211_hdr *frame = NULL;
-		const struct xradio_txpriv *txpriv = NULL;
+		const struct cw1200_txpriv *txpriv = NULL;
 		u16 fctl = 0x0;
 		u32 len  = 0x0;
 		u8 if_id = 0, link_id = 0, tid = 0;

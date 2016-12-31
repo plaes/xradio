@@ -24,7 +24,7 @@
 #include <asm/mach-types.h>
 #include <mach/sys_config.h>
 
-#include "xradio.h"
+#include "cw1200.h"
 #include "platform.h"
 #include "sbus.h"
 
@@ -240,7 +240,7 @@ static int plat_v819mini_pwr(int on)
 	struct regulator *ldo = NULL;
 	int ret = 0;
 
-	xradio_dbg(XRADIO_DBG_ERROR, "V819mini Power %s!.\n", on? "Up":"Down");
+	cw1200_dbg(XRADIO_DBG_ERROR, "V819mini Power %s!.\n", on? "Up":"Down");
 	
 	if (on) {
 		//wifi vcc 3.3v for XR819
@@ -702,9 +702,9 @@ int plat_module_power(int enable)
 }
 #endif //PLATFORM_RFKILL_PM
 
-/*********************Interfaces called by xradio core. *********************/
+/*********************Interfaces called by cw1200 core. *********************/
 #if (PLATFORM_SYSCONFIG)
-static int xradio_get_syscfg(void)
+static int cw1200_get_syscfg(void)
 {
 	script_item_u val;
 	script_item_value_type_e type;
@@ -735,7 +735,7 @@ static int xradio_get_syscfg(void)
 
 	type = script_get_item(WIFI_CONFIG, "wl_host_wake", &val);
 	if (SCIRPT_ITEM_VALUE_TYPE_PIO != type) {
-		printk(KERN_ERR "failed to fetch xradio_wl_host_wake\n");
+		printk(KERN_ERR "failed to fetch cw1200_wl_host_wake\n");
 		return -1;
 	}
 	wlan_irq_gpio = val.gpio.gpio;
@@ -768,7 +768,7 @@ static int xradio_get_syscfg(void)
 }
 #endif
 
-int  xradio_plat_init(void)
+int  cw1200_plat_init(void)
 {
 	int ret = 0;
 #if (!PLATFORM_SYSCONFIG)
@@ -776,7 +776,7 @@ int  xradio_plat_init(void)
 	wlan_irq_gpio   = PLAT_GPIO_WLAN_INT;
 	wlan_reset_gpio = PLAT_GPIO_WRESET;
 #else  //initialize from sys config.
-	ret = xradio_get_syscfg();
+	ret = cw1200_get_syscfg();
 #endif  //PLATFORM_SYSCONFIG
 
 #if (PMU_POWER_WLAN_RETAIN && !PLATFORM_RFKILL_PM)
@@ -785,7 +785,7 @@ int  xradio_plat_init(void)
 	return ret;
 }
 
-void xradio_plat_deinit(void)
+void cw1200_plat_deinit(void)
 {
 #if (PMU_POWER_WLAN_RETAIN && !PLATFORM_RFKILL_PM)
 	plat_module_power(0);
@@ -797,7 +797,7 @@ void xradio_plat_deinit(void)
 //void wifi_pm_power(int on)
 void wifi_pm(int on)
 {
-	printk(KERN_ERR "xradio wlan power %s\n", on?"on":"off");
+	printk(KERN_ERR "cw1200 wlan power %s\n", on?"on":"off");
 	if (on) {
 		wifi_pm_gpio_ctrl("wl_reg_on", 1);
 		mdelay(50);
@@ -810,7 +810,7 @@ void wifi_pm(int on)
 	}	
 }
 #endif
-int xradio_wlan_power(int on)
+int cw1200_wlan_power(int on)
 {
 	int ret = 0;
 
@@ -840,17 +840,17 @@ int xradio_wlan_power(int on)
 		}
 		gpio_free(wlan_reset_gpio);
 	} else {
-		xradio_dbg(XRADIO_DBG_ERROR, "%s: gpio_request err: %d\n", __func__, ret);
+		cw1200_dbg(XRADIO_DBG_ERROR, "%s: gpio_request err: %d\n", __func__, ret);
 	}
 #endif
 	return ret;
 }
 
-int xradio_sdio_detect(int enable)
+int cw1200_sdio_detect(int enable)
 {
 	int insert = enable;
 	MCI_RESCAN_CARD(wlan_bus_id, insert);
-	xradio_dbg(XRADIO_DBG_ALWY, "%s SDIO card %d\n", 
+	cw1200_dbg(XRADIO_DBG_ALWY, "%s SDIO card %d\n", 
 	           enable?"Detect":"Remove", wlan_bus_id);
 	mdelay(10);
 	return 0;
@@ -859,7 +859,7 @@ int xradio_sdio_detect(int enable)
 #ifdef CONFIG_XRADIO_USE_GPIO_IRQ
 static u32 gpio_irq_handle = 0;
 #ifdef PLAT_ALLWINNER_SUNXI
-static irqreturn_t xradio_gpio_irq_handler(int irq, void *sbus_priv)
+static irqreturn_t cw1200_gpio_irq_handler(int irq, void *sbus_priv)
 {
 	struct sbus_priv *self = (struct sbus_priv *)sbus_priv;
 	unsigned long flags;
@@ -872,7 +872,7 @@ static irqreturn_t xradio_gpio_irq_handler(int irq, void *sbus_priv)
 	return IRQ_HANDLED;
 }
 #else //PLAT_ALLWINNER_SUN6I
-static u32 xradio_gpio_irq_handler(void *sbus_priv)
+static u32 cw1200_gpio_irq_handler(void *sbus_priv)
 {
 	struct sbus_priv *self = (struct sbus_priv *)sbus_priv;
 	unsigned long flags;
@@ -886,41 +886,41 @@ static u32 xradio_gpio_irq_handler(void *sbus_priv)
 }
 #endif
 
-int xradio_request_gpio_irq(struct device *dev, void *sbus_priv)
+int cw1200_request_gpio_irq(struct device *dev, void *sbus_priv)
 {
 	int ret = -1;
 	if(!gpio_irq_handle) {
 
 #ifdef PLAT_ALLWINNER_SUNXI
-		gpio_request(wlan_irq_gpio, "xradio_irq");
+		gpio_request(wlan_irq_gpio, "cw1200_irq");
 		gpio_direction_input(wlan_irq_gpio);
 		gpio_irq_handle = gpio_to_irq(wlan_irq_gpio);
 		ret = devm_request_irq(dev, gpio_irq_handle, 
-		                      (irq_handler_t)xradio_gpio_irq_handler,
-		                       IRQF_TRIGGER_RISING, "xradio_irq", sbus_priv);
+		                      (irq_handler_t)cw1200_gpio_irq_handler,
+		                       IRQF_TRIGGER_RISING, "cw1200_irq", sbus_priv);
 		if (IS_ERR_VALUE(ret)) {
 			gpio_irq_handle = 0;
 		}
 #else//PLAT_ALLWINNER_SUN6I
 		gpio_irq_handle = sw_gpio_irq_request(wlan_irq_gpio, TRIG_EDGE_POSITIVE, 
-			                                        (peint_handle)xradio_gpio_irq_handler, sbus_priv);
+			                                        (peint_handle)cw1200_gpio_irq_handler, sbus_priv);
 #endif // PLAT_ALLWINNER_SUNXI
 	} else {
-		xradio_dbg(XRADIO_DBG_ERROR, "%s: error, irq exist already!\n", __func__);
+		cw1200_dbg(XRADIO_DBG_ERROR, "%s: error, irq exist already!\n", __func__);
 	}
 
 	if (gpio_irq_handle) {
-		xradio_dbg(XRADIO_DBG_NIY, "%s: request_irq sucess! irq=0x%08x\n", 
+		cw1200_dbg(XRADIO_DBG_NIY, "%s: request_irq sucess! irq=0x%08x\n", 
 		           __func__, gpio_irq_handle);
 		ret = 0;
 	} else {
-		xradio_dbg(XRADIO_DBG_ERROR, "%s: request_irq err: %d\n", __func__, ret);
+		cw1200_dbg(XRADIO_DBG_ERROR, "%s: request_irq err: %d\n", __func__, ret);
 		ret = -1;
 	}
 	return ret;
 }
 
-void xradio_free_gpio_irq(struct device *dev, void *sbus_priv)
+void cw1200_free_gpio_irq(struct device *dev, void *sbus_priv)
 {
 	struct sbus_priv *self = (struct sbus_priv *)sbus_priv;
 #ifdef PLAT_ALLWINNER_SUNXI

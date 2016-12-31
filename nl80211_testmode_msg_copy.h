@@ -132,7 +132,7 @@ struct xr_tsm_stats {
 
 /**
  * xr_msg_set_start_stop_tsm - To start or stop collecting TSM metrics in
- * xradio driver
+ * cw1200 driver
  * @start: To start or stop collecting TSM metrics
  * @up: up for which metrics to be collected
  * @packetization_delay: Packetization period for this TID

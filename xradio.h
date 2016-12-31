@@ -103,7 +103,7 @@
 #define MAX_RATES_STAGE   8   //
 #define MAX_RATES_RETRY   15
 
-#define XRADIO_WORKQUEUE   "xradio_wq"
+#define XRADIO_WORKQUEUE   "cw1200_wq"
 #define WIFI_CONF_PATH    "/data/xr_wifi.conf"
 
 //
@@ -114,19 +114,19 @@ extern char *drv_buildtime;
 
 /* extern */ struct sbus_ops;
 /* extern */ struct task_struct;
-/* extern */ struct xradio_debug_priv;
-/* extern */ struct xradio_debug_common;
+/* extern */ struct cw1200_debug_priv;
+/* extern */ struct cw1200_debug_common;
 /* extern */ struct firmware;
 
 /* Please keep order */
-enum xradio_join_status {
+enum cw1200_join_status {
 	XRADIO_JOIN_STATUS_PASSIVE = 0,
 	XRADIO_JOIN_STATUS_MONITOR,
 	XRADIO_JOIN_STATUS_STA,
 	XRADIO_JOIN_STATUS_AP,
 };
 
-enum xradio_link_status {
+enum cw1200_link_status {
 	XRADIO_LINK_OFF,
 	XRADIO_LINK_RESERVE,
 	XRADIO_LINK_SOFT,
@@ -137,18 +137,18 @@ enum xradio_link_status {
 #endif
 };
 
-enum xradio_bss_loss_status {
+enum cw1200_bss_loss_status {
 	XRADIO_BSS_LOSS_NONE,
 	XRADIO_BSS_LOSS_CHECKING,
 	XRADIO_BSS_LOSS_CONFIRMING,
 	XRADIO_BSS_LOSS_CONFIRMED,
 };
 
-struct xradio_link_entry {
+struct cw1200_link_entry {
 	unsigned long			timestamp;
-	enum xradio_link_status		status;
+	enum cw1200_link_status		status;
 #if defined(CONFIG_XRADIO_USE_EXTENSIONS)
-	enum xradio_link_status		prev_status;
+	enum cw1200_link_status		prev_status;
 #endif
 	u8				mac[ETH_ALEN];
 	u8				buffered[XRADIO_MAX_TID];
@@ -156,7 +156,7 @@ struct xradio_link_entry {
 };
 
 #if defined(ROAM_OFFLOAD) || defined(CONFIG_XRADIO_TESTMODE)
-struct xradio_testframe {
+struct cw1200_testframe {
 	u8 len;
 	u8 *data;
 };
@@ -167,7 +167,7 @@ struct advance_scan_elems {
 	u16 duration;
 };
 /**
- * xradio_tsm_info - Keeps information about ongoing TSM collection
+ * cw1200_tsm_info - Keeps information about ongoing TSM collection
  * @ac: Access category for which metrics to be collected
  * @use_rx_roaming: Use received voice packets to compute roam delay
  * @sta_associated: Set to 1 after association
@@ -180,7 +180,7 @@ struct advance_scan_elems {
  * @sum_media_delay: Sum of media delay
  *
  */
-struct xradio_tsm_info {
+struct cw1200_tsm_info {
 	u8 ac;
 	u8 use_rx_roaming;
 	u8 sta_associated;
@@ -193,24 +193,24 @@ struct xradio_tsm_info {
 };
 
 /**
- * xradio_start_stop_tsm - To start or stop collecting TSM metrics in
- * xradio driver
+ * cw1200_start_stop_tsm - To start or stop collecting TSM metrics in
+ * cw1200 driver
  * @start: To start or stop collecting TSM metrics
  * @up: up for which metrics to be collected
  * @packetization_delay: Packetization delay for this TID
  *
  */
-struct xradio_start_stop_tsm {
+struct cw1200_start_stop_tsm {
 	u8 start;       /*1: To start, 0: To stop*/
 	u8 up;
 	u16 packetization_delay;
 };
 
 #endif /* CONFIG_XRADIO_TESTMODE */
-struct xradio_common {
-	struct xradio_debug_common	*debug;
-	struct xradio_queue		tx_queue[AC_QUEUE_NUM];
-	struct xradio_queue_stats	tx_queue_stats;
+struct cw1200_common {
+	struct cw1200_debug_common	*debug;
+	struct cw1200_queue		tx_queue[AC_QUEUE_NUM];
+	struct cw1200_queue_stats	tx_queue_stats;
 
 	struct ieee80211_hw		*hw;
 	struct mac_address		addresses[XRWL_MAX_VIFS];
@@ -272,7 +272,7 @@ struct xradio_common {
 	spinlock_t			ba_lock; /*TODO: Same as above */
 	bool				ba_ena; /*TODO: Same as above */
 	struct work_struct              ba_work; /*TODO: Same as above */
-	struct xradio_pm_state		pm_state;
+	struct cw1200_pm_state		pm_state;
 	bool				is_BT_Present;
 	bool				is_go_thru_go_neg;
 	u8				conf_listen_interval;
@@ -304,7 +304,7 @@ struct xradio_common {
 	int						 skb_resv_len;
 	bool				powersave_enabled;
 	bool				device_can_sleep;
-	/* Keep xradio awake (WUP = 1) 1 second after each scan to avoid
+	/* Keep cw1200 awake (WUP = 1) 1 second after each scan to avoid
 	 * FW issue with sleeping/waking up. */
 	atomic_t			recent_scan;
 	long			connet_time[XRWL_MAX_VIFS];
@@ -344,7 +344,7 @@ struct xradio_common {
 	struct work_struct  query_work; /* for query packet */
 
 	/* Scan status */
-	struct xradio_scan scan;
+	struct cw1200_scan scan;
 
 	/* TX/RX */
 	unsigned long		rx_timestamp;
@@ -367,7 +367,7 @@ struct xradio_common {
 	/* statistics */
 	struct ieee80211_low_level_stats stats;
 
-	struct xradio_ht_info		ht_info;
+	struct cw1200_ht_info		ht_info;
 	int				tx_burst_idx;
 
 	struct ieee80211_iface_limit		if_limits1[2];
@@ -399,14 +399,14 @@ struct xradio_common {
 	struct wsm_scan_ch		scan_channels[48];
 	struct sk_buff 			*beacon;
 	struct sk_buff 			*beacon_bkp;
-	struct xradio_testframe 	testframe;
+	struct cw1200_testframe 	testframe;
 #endif /*ROAM_OFFLOAD*/
 #ifdef CONFIG_XRADIO_TESTMODE
-	struct xradio_testframe test_frame;
+	struct cw1200_testframe test_frame;
 	struct xr_tsm_stats		tsm_stats;
-	struct xradio_tsm_info		tsm_info;
+	struct cw1200_tsm_info		tsm_info;
 	spinlock_t			tsm_lock;
-	struct xradio_start_stop_tsm	start_stop_tsm;
+	struct cw1200_start_stop_tsm	start_stop_tsm;
 #endif /* CONFIG_XRADIO_TESTMODE */
 	u8          connected_sta_cnt;
 	u16			vif0_throttle;
@@ -414,12 +414,12 @@ struct xradio_common {
 };
 
 /* Virtual Interface State. One copy per VIF */
-struct xradio_vif {
+struct cw1200_vif {
 	atomic_t			enabled;
 	spinlock_t			vif_lock;
 	int				if_id;
 	/*TODO: Split into Common and VIF parts */
-	struct xradio_debug_priv	*debug;
+	struct cw1200_debug_priv	*debug;
 	/* BBP/MAC state */
 	u8 bssid[ETH_ALEN];
 	struct wsm_edca_params		edca;
@@ -460,7 +460,7 @@ struct xradio_vif {
 #endif /*IPV6_FILTERING*/
 	struct work_struct		update_filtering_work;
 	struct work_struct		set_beacon_wakeup_period_work;
-	struct xradio_pm_state_vif	pm_state_vif;
+	struct cw1200_pm_state_vif	pm_state_vif;
 	/*TODO: Add support in mac80211 for psmode info per VIF */
 	struct wsm_p2p_ps_modeinfo	p2p_ps_modeinfo;
 	struct wsm_uapsd_info		uapsd_info;
@@ -470,7 +470,7 @@ struct xradio_vif {
 	bool				powersave_enabled;
 
 	/* WSM Join */
-	enum xradio_join_status	join_status;
+	enum cw1200_join_status	join_status;
 	u8			join_bssid[ETH_ALEN];
 	struct work_struct	join_work;
 	struct delayed_work	join_timeout;
@@ -493,7 +493,7 @@ struct xradio_vif {
 	u32			link_id_uapsd;
 	u32			link_id_max;
 	u32			wsm_key_max_idx;
-	struct xradio_link_entry link_id_db[MAX_STA_IN_AP_MODE];
+	struct cw1200_link_entry link_id_db[MAX_STA_IN_AP_MODE];
 	struct work_struct	link_id_work;
 	struct delayed_work	link_id_gc_work;
 	u32			sta_asleep_mask;
@@ -519,7 +519,7 @@ struct xradio_vif {
 	int			bss_loss_confirm_id;
 
 	struct ieee80211_vif	*vif;
-	struct xradio_common	*hw_priv;
+	struct cw1200_common	*hw_priv;
 	struct ieee80211_hw	*hw;
 
 	/* ROC implementation */
@@ -541,11 +541,11 @@ struct xradio_vif {
 	u16    ht_compat_det;
 #endif
 };
-struct xradio_sta_priv {
+struct cw1200_sta_priv {
 	int link_id;
-	struct xradio_vif *priv;
+	struct cw1200_vif *priv;
 };
-enum xradio_data_filterid {
+enum cw1200_data_filterid {
 	IPV4ADDR_FILTER_ID = 0,
 #ifdef IPV6_FILTERING
 	IPV6ADDR_FILTER_ID,
@@ -583,29 +583,29 @@ extern u32  TES_P2P_0002_state;
 #define TES_P2P_0002_STATE_GET_PKTID  0x02
 #endif
 
-/* debug.h must be here because refer to struct xradio_vif and 
-   struct xradio_common.*/
+/* debug.h must be here because refer to struct cw1200_vif and 
+   struct cw1200_common.*/
 #include "debug.h"
 
 /*******************************************************
  interfaces for operations of vif.
 ********************************************************/
 static inline
-struct xradio_common *xrwl_vifpriv_to_hwpriv(struct xradio_vif *priv)
+struct cw1200_common *xrwl_vifpriv_to_hwpriv(struct cw1200_vif *priv)
 {
 	return priv->hw_priv;
 }
 static inline
-struct xradio_vif *xrwl_get_vif_from_ieee80211(struct ieee80211_vif *vif)
+struct cw1200_vif *xrwl_get_vif_from_ieee80211(struct ieee80211_vif *vif)
 {
-	return  (struct xradio_vif *)vif->drv_priv;
+	return  (struct cw1200_vif *)vif->drv_priv;
 }
 
 static inline
-struct xradio_vif *xrwl_hwpriv_to_vifpriv(struct xradio_common *hw_priv,
+struct cw1200_vif *xrwl_hwpriv_to_vifpriv(struct cw1200_common *hw_priv,
 						int if_id)
 {
-	struct xradio_vif *vif;
+	struct cw1200_vif *vif;
 
 	if (SYS_WARN((-1 == if_id) || (if_id > XRWL_MAX_VIFS)))
 		return NULL;
@@ -626,7 +626,7 @@ struct xradio_vif *xrwl_hwpriv_to_vifpriv(struct xradio_common *hw_priv,
 }
 
 static inline
-struct xradio_vif *__xrwl_hwpriv_to_vifpriv(struct xradio_common *hw_priv,
+struct cw1200_vif *__xrwl_hwpriv_to_vifpriv(struct cw1200_common *hw_priv,
 					      int if_id)
 {
 	SYS_WARN((-1 == if_id) || (if_id > XRWL_MAX_VIFS));
@@ -640,17 +640,17 @@ struct xradio_vif *__xrwl_hwpriv_to_vifpriv(struct xradio_common *hw_priv,
 }
 
 static inline
-struct xradio_vif *xrwl_get_activevif(struct xradio_common *hw_priv)
+struct cw1200_vif *xrwl_get_activevif(struct cw1200_common *hw_priv)
 {
 	return xrwl_hwpriv_to_vifpriv(hw_priv, ffs(hw_priv->if_id_slot)-1);
 }
 
-static inline bool is_hardware_xradio(struct xradio_common *hw_priv)
+static inline bool is_hardware_cw1200(struct cw1200_common *hw_priv)
 {
 	return (hw_priv->hw_revision == XR819_HW_REV0);
 }
 
-static inline int xrwl_get_nr_hw_ifaces(struct xradio_common *hw_priv)
+static inline int xrwl_get_nr_hw_ifaces(struct cw1200_common *hw_priv)
 {
 	switch(hw_priv->hw_revision) {
 		case XR819_HW_REV0:
@@ -659,7 +659,7 @@ static inline int xrwl_get_nr_hw_ifaces(struct xradio_common *hw_priv)
 	}
 }
 
-#define xradio_for_each_vif(_hw_priv, _priv, _i)			\
+#define cw1200_for_each_vif(_hw_priv, _priv, _i)			\
 	for(		\
 		_i = 0; 							 \
 		(_i < XRWL_MAX_VIFS)				  \
@@ -671,18 +671,18 @@ static inline int xrwl_get_nr_hw_ifaces(struct xradio_common *hw_priv)
 /*******************************************************
  interfaces for operations of queue.
 ********************************************************/
-static inline void xradio_tx_queues_lock(struct xradio_common *hw_priv)
+static inline void cw1200_tx_queues_lock(struct cw1200_common *hw_priv)
 {
 	int i;
 	for (i = 0; i < 4; ++i)
-		xradio_queue_lock(&hw_priv->tx_queue[i]);
+		cw1200_queue_lock(&hw_priv->tx_queue[i]);
 }
 
-static inline void xradio_tx_queues_unlock(struct xradio_common *hw_priv)
+static inline void cw1200_tx_queues_unlock(struct cw1200_common *hw_priv)
 {
 	int i;
 	for (i = 0; i < 4; ++i)
-		xradio_queue_unlock(&hw_priv->tx_queue[i]);
+		cw1200_queue_unlock(&hw_priv->tx_queue[i]);
 }
 
 #endif /* XRADIO_H */

@@ -12,7 +12,7 @@
 #include <net/mac80211.h>
 #include <linux/kthread.h>
 
-#include "xradio.h"
+#include "cw1200.h"
 #include "bh.h"
 #include "hwio.h"
 #include "wsm.h"
@@ -27,20 +27,20 @@
 #define EFFECTIVE_BUF_SIZE	(MAX_SZ_RD_WR_BUFFERS - PIGGYBACK_CTRL_REG)
 
 /* Suspend state privates */
-enum xradio_bh_pm_state {
+enum cw1200_bh_pm_state {
 	XRADIO_BH_RESUMED = 0,
 	XRADIO_BH_SUSPEND,
 	XRADIO_BH_SUSPENDED,
 	XRADIO_BH_RESUME,
 };
-typedef int (*xradio_wsm_handler)(struct xradio_common *hw_priv, u8 *data, size_t size);
+typedef int (*cw1200_wsm_handler)(struct cw1200_common *hw_priv, u8 *data, size_t size);
 
 #ifdef MCAST_FWDING
-int wsm_release_buffer_to_fw(struct xradio_vif *priv, int count);
+int wsm_release_buffer_to_fw(struct cw1200_vif *priv, int count);
 #endif
-static int xradio_bh(void *arg);
+static int cw1200_bh(void *arg);
 
-int xradio_register_bh(struct xradio_common *hw_priv)
+int cw1200_register_bh(struct cw1200_common *hw_priv)
 {
 	int err = 0;
 	struct sched_param param = { .sched_priority = 1 };
@@ -61,7 +61,7 @@ int xradio_register_bh(struct xradio_common *hw_priv)
 #endif
 	init_waitqueue_head(&hw_priv->bh_evt_wq);
 
-	hw_priv->bh_thread = kthread_create(&xradio_bh, hw_priv, XRADIO_BH_THREAD);
+	hw_priv->bh_thread = kthread_create(&cw1200_bh, hw_priv, XRADIO_BH_THREAD);
 	if (IS_ERR(hw_priv->bh_thread)) {
 		err = PTR_ERR(hw_priv->bh_thread);
 		hw_priv->bh_thread = NULL;
@@ -75,7 +75,7 @@ int xradio_register_bh(struct xradio_common *hw_priv)
 	return err;
 }
 
-void xradio_unregister_bh(struct xradio_common *hw_priv)
+void cw1200_unregister_bh(struct cw1200_common *hw_priv)
 {
 	struct task_struct *thread = hw_priv->bh_thread;
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
@@ -91,7 +91,7 @@ void xradio_unregister_bh(struct xradio_common *hw_priv)
 	bh_printk(XRADIO_DBG_NIY, "Unregister success.\n");
 }
 
-void xradio_irq_handler(struct xradio_common *hw_priv)
+void cw1200_irq_handler(struct cw1200_common *hw_priv)
 {
 
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
@@ -111,7 +111,7 @@ void xradio_irq_handler(struct xradio_common *hw_priv)
 
 }
 
-void xradio_bh_wakeup(struct xradio_common *hw_priv)
+void cw1200_bh_wakeup(struct cw1200_common *hw_priv)
 {
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
 	if (SYS_WARN(hw_priv->bh_error))
@@ -128,12 +128,12 @@ void xradio_bh_wakeup(struct xradio_common *hw_priv)
 #endif
 }
 
-int xradio_bh_suspend(struct xradio_common *hw_priv)
+int cw1200_bh_suspend(struct cw1200_common *hw_priv)
 {
 
 #ifdef MCAST_FWDING
 	int i =0;
-	struct xradio_vif *priv = NULL;
+	struct cw1200_vif *priv = NULL;
 #endif
 
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
@@ -142,7 +142,7 @@ int xradio_bh_suspend(struct xradio_common *hw_priv)
 	}
 
 #ifdef MCAST_FWDING
- 	xradio_for_each_vif(hw_priv, priv, i) {
+ 	cw1200_for_each_vif(hw_priv, priv, i) {
 		if (!priv)
 			continue;	
 		if ( (priv->multicast_filter.enable)
@@ -165,13 +165,13 @@ int xradio_bh_suspend(struct xradio_common *hw_priv)
 	                          1 * HZ)?  0 : -ETIMEDOUT;
 }
 
-int xradio_bh_resume(struct xradio_common *hw_priv)
+int cw1200_bh_resume(struct cw1200_common *hw_priv)
 {
 
 #ifdef MCAST_FWDING
 	int ret;
 	int i =0; 
-	struct xradio_vif *priv =NULL;
+	struct cw1200_vif *priv =NULL;
 #endif
 
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
@@ -191,7 +191,7 @@ int xradio_bh_resume(struct xradio_common *hw_priv)
 	                         XRADIO_BH_RESUMED == atomic_read(&hw_priv->bh_suspend))
 	                         ,1 * HZ)? 0 : -ETIMEDOUT;
 
-	xradio_for_each_vif(hw_priv, priv, i) {
+	cw1200_for_each_vif(hw_priv, priv, i) {
 		if (!priv)
 			continue;
 		if ((priv->join_status == XRADIO_JOIN_STATUS_AP) && 
@@ -212,12 +212,12 @@ int xradio_bh_resume(struct xradio_common *hw_priv)
 
 }
 
-static inline void wsm_alloc_tx_buffer(struct xradio_common *hw_priv)
+static inline void wsm_alloc_tx_buffer(struct cw1200_common *hw_priv)
 {
 	++hw_priv->hw_bufs_used;
 }
 
-int wsm_release_tx_buffer(struct xradio_common *hw_priv, int count)
+int wsm_release_tx_buffer(struct cw1200_common *hw_priv, int count)
 {
 	int ret = 0;
 	int hw_bufs_used = hw_priv->hw_bufs_used;
@@ -239,7 +239,7 @@ int wsm_release_tx_buffer(struct xradio_common *hw_priv, int count)
 	return ret;
 }
 
-int wsm_release_vif_tx_buffer(struct xradio_common *hw_priv, int if_id, int count)
+int wsm_release_vif_tx_buffer(struct cw1200_common *hw_priv, int if_id, int count)
 {
 	int ret = 0;
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
@@ -253,14 +253,14 @@ int wsm_release_vif_tx_buffer(struct xradio_common *hw_priv, int if_id, int coun
 	return ret;
 }
 #ifdef MCAST_FWDING
-int wsm_release_buffer_to_fw(struct xradio_vif *priv, int count)
+int wsm_release_buffer_to_fw(struct cw1200_vif *priv, int count)
 {
 	int i;
 	u8 flags;
 	struct wsm_buf *buf;
 	size_t buf_len;
 	struct wsm_hdr *wsm;
-	struct xradio_common *hw_priv = priv->hw_priv;
+	struct cw1200_common *hw_priv = priv->hw_priv;
 	bh_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
 
 	if (priv->join_status != XRADIO_JOIN_STATUS_AP) {
@@ -284,7 +284,7 @@ int wsm_release_buffer_to_fw(struct xradio_vif *priv, int count)
 			wsm->id |= cpu_to_le32(WSM_TX_SEQ(hw_priv->wsm_tx_seq));
 
 			bh_printk(XRADIO_DBG_NIY, "REL %d\n", hw_priv->wsm_tx_seq);
-			if (SYS_WARN(xradio_data_write(hw_priv, buf->begin, buf_len))) {
+			if (SYS_WARN(cw1200_data_write(hw_priv, buf->begin, buf_len))) {
 				break;
 			}
 			hw_priv->buf_released = 1;
@@ -306,7 +306,7 @@ int wsm_release_buffer_to_fw(struct xradio_vif *priv, int count)
 #endif
 
 /* reserve a packet for the case dev_alloc_skb failed in bh.*/
-int xradio_init_resv_skb(struct xradio_common *hw_priv)
+int cw1200_init_resv_skb(struct cw1200_common *hw_priv)
 {
 	int len = (SDIO_BLOCK_SIZE<<2) + WSM_TX_EXTRA_HEADROOM + \
 	           8 + 12;	/* TKIP IV + ICV and MIC */
@@ -322,7 +322,7 @@ int xradio_init_resv_skb(struct xradio_common *hw_priv)
 	return 0;
 }
 
-void xradio_deinit_resv_skb(struct xradio_common *hw_priv)
+void cw1200_deinit_resv_skb(struct cw1200_common *hw_priv)
 {
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 	if (hw_priv->skb_reserved) {
@@ -332,7 +332,7 @@ void xradio_deinit_resv_skb(struct xradio_common *hw_priv)
 	}
 }
 
-int xradio_realloc_resv_skb(struct xradio_common *hw_priv,
+int cw1200_realloc_resv_skb(struct cw1200_common *hw_priv,
 							struct sk_buff *skb)
 {
 	if (!hw_priv->skb_reserved && hw_priv->skb_resv_len) {
@@ -347,7 +347,7 @@ int xradio_realloc_resv_skb(struct xradio_common *hw_priv,
 	return 0; /* realloc sbk success, deliver to upper.*/
 }
 
-static inline struct sk_buff *xradio_get_resv_skb(struct xradio_common *hw_priv,
+static inline struct sk_buff *cw1200_get_resv_skb(struct cw1200_common *hw_priv,
 												  size_t len)
 {	struct sk_buff *skb = NULL;
 	if (hw_priv->skb_reserved && len <= hw_priv->skb_resv_len) {
@@ -357,7 +357,7 @@ static inline struct sk_buff *xradio_get_resv_skb(struct xradio_common *hw_priv,
 	return skb;
 }
 
-static inline int xradio_put_resv_skb(struct xradio_common *hw_priv,
+static inline int cw1200_put_resv_skb(struct cw1200_common *hw_priv,
 									  struct sk_buff *skb)
 {
 	if (!hw_priv->skb_reserved && hw_priv->skb_resv_len) {
@@ -367,7 +367,7 @@ static inline int xradio_put_resv_skb(struct xradio_common *hw_priv,
 	return 1; /* sbk not put to reserve*/
 }
 
-static struct sk_buff *xradio_get_skb(struct xradio_common *hw_priv, size_t len)
+static struct sk_buff *cw1200_get_skb(struct cw1200_common *hw_priv, size_t len)
 {
 	struct sk_buff *skb = NULL;
 	size_t alloc_len = (len > SDIO_BLOCK_SIZE) ? len : SDIO_BLOCK_SIZE;
@@ -383,7 +383,7 @@ static struct sk_buff *xradio_get_skb(struct xradio_common *hw_priv, size_t len)
 			skb_reserve(skb, WSM_TX_EXTRA_HEADROOM + 8 /* TKIP IV */
 					    - WSM_RX_EXTRA_HEADROOM);
 		} else {
-			skb = xradio_get_resv_skb(hw_priv, alloc_len);
+			skb = cw1200_get_resv_skb(hw_priv, alloc_len);
 			if (skb) {
 				bh_printk(XRADIO_DBG_WARN,"%s get skb_reserved(%d)!\n",
 				          __FUNCTION__, alloc_len);
@@ -401,7 +401,7 @@ static struct sk_buff *xradio_get_skb(struct xradio_common *hw_priv, size_t len)
 	return skb;
 }
 
-static void xradio_put_skb(struct xradio_common *hw_priv, struct sk_buff *skb)
+static void cw1200_put_skb(struct cw1200_common *hw_priv, struct sk_buff *skb)
 {
 	bh_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
 	if (hw_priv->skb_cache)
@@ -410,13 +410,13 @@ static void xradio_put_skb(struct xradio_common *hw_priv, struct sk_buff *skb)
 		hw_priv->skb_cache = skb;
 }
 
-static int xradio_bh_read_ctrl_reg(struct xradio_common *hw_priv,
+static int cw1200_bh_read_ctrl_reg(struct cw1200_common *hw_priv,
 					  u16 *ctrl_reg)
 {
 	int ret;
-	ret = xradio_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, ctrl_reg);
+	ret = cw1200_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, ctrl_reg);
 	if (ret) {
-		ret = xradio_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, ctrl_reg);
+		ret = cw1200_reg_read_16(hw_priv, HIF_CONTROL_REG_ID, ctrl_reg);
 		if (ret) {
 			hw_priv->bh_error = 1;
 			bh_printk(XRADIO_DBG_ERROR, "Failed to read control register.\n");
@@ -426,7 +426,7 @@ static int xradio_bh_read_ctrl_reg(struct xradio_common *hw_priv,
 	return ret;
 }
 
-static int xradio_device_wakeup(struct xradio_common *hw_priv)
+static int cw1200_device_wakeup(struct cw1200_common *hw_priv)
 {
 	u16 ctrl_reg;
 	int ret, i=0;
@@ -434,18 +434,18 @@ static int xradio_device_wakeup(struct xradio_common *hw_priv)
 	bh_printk(XRADIO_DBG_MSG, "%s\n", __FUNCTION__);
 
 	/* To force the device to be always-on, the host sets WLAN_UP to 1 */
-	ret = xradio_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, HIF_CTRL_WUP_BIT);
+	ret = cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, HIF_CTRL_WUP_BIT);
 	if (SYS_WARN(ret))
 		return ret;
 
-	ret = xradio_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
+	ret = cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
 	if (SYS_WARN(ret))
 		return ret;
 
 	/* If the device returns WLAN_RDY as 1, the device is active and will
 	 * remain active. */
 	while (!(ctrl_reg & HIF_CTRL_RDY_BIT) && i < 500) {
-		ret = xradio_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
+		ret = cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
 		msleep(1);
 		i++;
 	}
@@ -459,7 +459,7 @@ static int xradio_device_wakeup(struct xradio_common *hw_priv)
 }
 
 /* Must be called from BH thraed. */
-void xradio_enable_powersave(struct xradio_vif *priv,
+void cw1200_enable_powersave(struct cw1200_vif *priv,
 			     bool enable)
 {
 	priv->powersave_enabled = enable;
@@ -467,9 +467,9 @@ void xradio_enable_powersave(struct xradio_vif *priv,
 }
 
 
-static int xradio_bh(void *arg)
+static int cw1200_bh(void *arg)
 {
-	struct xradio_common *hw_priv = arg;
+	struct cw1200_common *hw_priv = arg;
 	struct sk_buff *skb_rx = NULL;
 	size_t read_len = 0;
 	int rx = 0, tx = 0, term, suspend;
@@ -497,7 +497,7 @@ static int xradio_bh(void *arg)
 		    atomic_read(&hw_priv->bh_rx) == 0   &&
 		    atomic_read(&hw_priv->bh_tx) == 0) {
 			bh_printk(XRADIO_DBG_MSG, "Device idle, can sleep.\n");
-			SYS_WARN(xradio_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
+			SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
 			hw_priv->device_can_sleep = true;
 			status = HZ/8;    //125ms
 		} else if (hw_priv->hw_bufs_used) {
@@ -511,14 +511,14 @@ static int xradio_bh(void *arg)
 		/* Dummy Read for SDIO retry mechanism*/
 		if (atomic_read(&hw_priv->bh_rx) == 0 && 
 		    atomic_read(&hw_priv->bh_tx) == 0) {
-			xradio_reg_read(hw_priv, HIF_CONFIG_REG_ID, &dummy, sizeof(dummy));
+			cw1200_reg_read(hw_priv, HIF_CONFIG_REG_ID, &dummy, sizeof(dummy));
 		}
 		/* If a packet has already been txed to the device then read the 
 		 * control register for a probable interrupt miss before going
 		 * further to wait for interrupt; if the read length is non-zero
 		 * then it means there is some data to be received */
 		if (hw_priv->hw_bufs_used) {
-			xradio_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
+			cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
 			if(ctrl_reg & HIF_CTRL_NEXT_LEN_MASK) {
 				DBG_BH_FIX_RX_ADD;
 				rx = 1;
@@ -550,7 +550,7 @@ static int xradio_bh(void *arg)
 
 		/* 0--bh is going to be shut down */
 		if(term) {
-			bh_printk(XRADIO_DBG_MSG, "xradio_bh exit!\n");
+			bh_printk(XRADIO_DBG_MSG, "cw1200_bh exit!\n");
 			break;
 		}
 		/* 1--An fatal error occurs */
@@ -564,7 +564,7 @@ static int xradio_bh(void *arg)
 		/* 2--Wait for interrupt time out */
 		if (!status) {
 			/* Check if miss interrupt. */
-			xradio_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
+			cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
 			if(ctrl_reg & HIF_CTRL_NEXT_LEN_MASK) {
 				bh_printk(XRADIO_DBG_WARN, "miss interrupt!\n" );
 				DBG_BH_MISS_ADD;
@@ -578,7 +578,7 @@ static int xradio_bh(void *arg)
 				bool pending = 0;
 				bh_printk(XRADIO_DBG_NIY, "Need confirm:%d!\n", hw_priv->hw_bufs_used);
 				/* Check if frame transmission is timed out. */
-				pending = xradio_query_txpkt_timeout(hw_priv, XRWL_ALL_IFS, 
+				pending = cw1200_query_txpkt_timeout(hw_priv, XRWL_ALL_IFS, 
 				                                     hw_priv->pending_frame_id, &timeout);
 				/* There are some frames confirm time out. */
 				if (pending && timeout < 0) {
@@ -591,7 +591,7 @@ static int xradio_bh(void *arg)
 				if (hw_priv->powersave_enabled && !hw_priv->device_can_sleep && !atomic_read(&hw_priv->recent_scan)) {
 					/* Device is idle, we can go to sleep. */
 					bh_printk(XRADIO_DBG_MSG, "Device idle(timeout), can sleep.\n");
-					SYS_WARN(xradio_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
+					SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
 					hw_priv->device_can_sleep = true;
 				}
 				continue;
@@ -604,7 +604,7 @@ static int xradio_bh(void *arg)
 			if (hw_priv->powersave_enabled) {
 				bh_printk(XRADIO_DBG_MSG,
 					 "Device idle(host suspend), can sleep.\n");
-				SYS_WARN(xradio_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
+				SYS_WARN(cw1200_reg_write_16(hw_priv, HIF_CONTROL_REG_ID, 0));
 				hw_priv->device_can_sleep = true;
 			}
 
@@ -650,7 +650,7 @@ data_proc:
 			u8 *data;
 			/* Check ctrl_reg again. */
 			if(!(ctrl_reg & HIF_CTRL_NEXT_LEN_MASK))
-				if (SYS_WARN(xradio_bh_read_ctrl_reg(hw_priv, &ctrl_reg))) {
+				if (SYS_WARN(cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg))) {
 					hw_priv->bh_error = __LINE__;
 					break;
 				}
@@ -685,9 +685,9 @@ rx:
 			}
 
 			/* Get skb buffer. */
-			skb_rx = xradio_get_skb(hw_priv, alloc_len);
+			skb_rx = cw1200_get_skb(hw_priv, alloc_len);
 			if (SYS_WARN(!skb_rx)) {
-				bh_printk(XRADIO_DBG_ERROR, "ERR: xradio_get_skb failed.\n");
+				bh_printk(XRADIO_DBG_ERROR, "ERR: cw1200_get_skb failed.\n");
 				hw_priv->bh_error = __LINE__;
 				break;
 			}
@@ -701,7 +701,7 @@ rx:
 			}
 
 			/* Read data from device. */
-			if (SYS_WARN(xradio_data_read(hw_priv, data, alloc_len))) {
+			if (SYS_WARN(cw1200_data_read(hw_priv, data, alloc_len))) {
 				hw_priv->bh_error = __LINE__;
 				break;
 			}
@@ -778,15 +778,15 @@ rx:
 
 			/* Reclaim the SKB buffer */
 			if (skb_rx) {
-				if(xradio_put_resv_skb(hw_priv, skb_rx))
-				xradio_put_skb(hw_priv, skb_rx);
+				if(cw1200_put_resv_skb(hw_priv, skb_rx))
+				cw1200_put_skb(hw_priv, skb_rx);
 				skb_rx = NULL;
 			}
 			read_len = 0;
 
 			/* Check if rx burst */
 			if (rx_burst) {
-				xradio_debug_rx_burst(hw_priv);
+				cw1200_debug_rx_burst(hw_priv);
 				--rx_burst;
 				goto rx;
 			}
@@ -803,7 +803,7 @@ tx:
 
 			/* Wake up the devices */
 			if (hw_priv->device_can_sleep) {
-				ret = xradio_device_wakeup(hw_priv);
+				ret = cw1200_device_wakeup(hw_priv);
 				if (SYS_WARN(ret < 0)) {
 					hw_priv->bh_error = __LINE__;
 					break;
@@ -863,9 +863,9 @@ tx:
 				wsm->id |= cpu_to_le32(WSM_TX_SEQ(hw_priv->wsm_tx_seq));
 
 				/* Send the data to devices. */
-				if (SYS_WARN(xradio_data_write(hw_priv, data, tx_len))) {
+				if (SYS_WARN(cw1200_data_write(hw_priv, data, tx_len))) {
 					wsm_release_tx_buffer(hw_priv, 1);
-					bh_printk(XRADIO_DBG_ERROR, "xradio_data_write failed\n");
+					bh_printk(XRADIO_DBG_ERROR, "cw1200_data_write failed\n");
 					hw_priv->bh_error = __LINE__;
 					break;
 				}
@@ -900,7 +900,7 @@ tx:
 
 				/* Check for burst. */
 				if (tx_burst > 1) {
-					xradio_debug_tx_burst(hw_priv);
+					cw1200_debug_tx_burst(hw_priv);
 					++rx_burst;
 					goto tx;
 				}
@@ -914,7 +914,7 @@ tx:
 			DBG_BH_NEXT_RX_ADD;
 			goto rx;
 		} else {
-			xradio_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
+			cw1200_bh_read_ctrl_reg(hw_priv, &ctrl_reg);
 			if(ctrl_reg & HIF_CTRL_NEXT_LEN_MASK) {
 				DBG_BH_FIX_RX_ADD;
 				goto rx;
@@ -924,8 +924,8 @@ tx:
 
 	/* Reclaim the SKB buffer when exit. */
 	if (skb_rx) {
-		if(xradio_put_resv_skb(hw_priv, skb_rx))
-		xradio_put_skb(hw_priv, skb_rx);
+		if(cw1200_put_resv_skb(hw_priv, skb_rx))
+		cw1200_put_skb(hw_priv, skb_rx);
 		skb_rx = NULL;
 	}
 
