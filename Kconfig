@@ -43,14 +43,6 @@ config XRADIO_5GHZ_SUPPORT
 	---help---
 	  Say Y if your device supports 5GHz band. If unsure, say N.
 
-config XRADIO_WAPI_SUPPORT
-	bool "WAPI support"
-	depends on XRADIO
-	default n
-	---help---
-	  Say Y if your compat-wireless support WAPI.
-	  If unsure, say N.
-
 config XRADIO_USE_EXTENSIONS
 	bool "Extensions for WFD and PS mode"
 	depends on XRADIO

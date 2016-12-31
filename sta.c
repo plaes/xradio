@@ -997,7 +997,6 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 			               __func__, key->keylen);
 			}
 			break;
-#ifdef CONFIG_XRADIO_WAPI_SUPPORT
 		case WLAN_CIPHER_SUITE_SMS4:
 			if (pairwise) {
 				wsm_key->type = WSM_KEY_TYPE_WAPI_PAIRWISE;
@@ -1005,18 +1004,13 @@ int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,
 				memcpy(wsm_key->wapiPairwiseKey.wapiKeyData, &key->key[0],  16);
 				memcpy(wsm_key->wapiPairwiseKey.micKeyData, &key->key[16], 16);
 				wsm_key->wapiPairwiseKey.keyId = key->keyidx;
-				sta_printk(XRADIO_DBG_NIY,"%s: WAPI_PAIRWISE keylen=%d!\n",
-			               __func__, key->keylen);
 			} else {
 				wsm_key->type = WSM_KEY_TYPE_WAPI_GROUP;
 				memcpy(wsm_key->wapiGroupKey.wapiKeyData, &key->key[0],  16);
 				memcpy(wsm_key->wapiGroupKey.micKeyData,  &key->key[16], 16);
 				wsm_key->wapiGroupKey.keyId = key->keyidx;
-				sta_printk(XRADIO_DBG_NIY,"%s: WAPI_GROUP keylen=%d!\n",
-			               __func__, key->keylen);
 			}
 			break;
-#endif /* CONFIG_XRADIO_WAPI_SUPPORT */
 		default:
 			pr_warn("Unhandled key type %d\n", key->cipher);
 			cw1200_free_key(hw_priv, idx);
