@@ -222,11 +222,7 @@ void cw1200_pm_stay_awake(struct cw1200_pm_state *pm,
 	pm_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
 
 	spin_lock_bh(&pm->lock);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 	cur_tmo = pm->wakelock.ws.timer.expires - jiffies;
-#else
-	cur_tmo = pm->wakelock.expires - jiffies;
-#endif
 	if (!wake_lock_active(&pm->wakelock) || cur_tmo < (long)tmo)
 		wake_lock_timeout(&pm->wakelock, tmo);
 	spin_unlock_bh(&pm->lock);
@@ -235,11 +231,7 @@ void cw1200_pm_lock_awake(struct cw1200_pm_state *pm)
 {
 	pm_printk(XRADIO_DBG_NIY, "%s\n", __func__);
 	spin_lock_bh(&pm->lock);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
 	pm->expires_save = pm->wakelock.ws.timer.expires;
-#else
-	pm->expires_save = pm->wakelock.expires;
-#endif
 	wake_lock_timeout(&pm->wakelock, LONG_MAX);
 	spin_unlock_bh(&pm->lock);
 }
