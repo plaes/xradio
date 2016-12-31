@@ -20,6 +20,8 @@
 
 #define XRADIO_BEACON_SKIPPING_MULTIPLIER 3
 
+#define XRADIO_PM_DEVICE   "cw1200_pm"
+
 struct cw1200_udp_port_filter {
 	struct wsm_udp_port_filter_hdr hdr;
 	struct wsm_udp_port_filter dhcp;
@@ -304,6 +306,16 @@ static int cw1200_pm_probe(struct platform_device *pdev)
 	pdev->dev.release = cw1200_pm_release;
 	return 0;
 }
+
+int cw1200_can_suspend(struct cw1200_common *priv)
+{
+	if (atomic_read(&priv->bh_rx)) {
+		/* XXX wiphy_dbg(priv->hw->wiphy, "Suspend interrupted.\n"); */
+		return 0;
+	}
+	return 1;
+}
+EXPORT_SYMBOL_GPL(cw1200_can_suspend);
 
 int cw1200_wow_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
