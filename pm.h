@@ -13,10 +13,6 @@
 #ifndef PM_H_INCLUDED
 #define PM_H_INCLUDED
 
-#ifdef CONFIG_WAKELOCK
-#include <linux/wakelock.h>
-#endif
-
 /* ******************************************************************** */
 /* mac80211 API */
 
@@ -29,11 +25,7 @@
  /* private */ struct cw1200_suspend_state;
 
 struct cw1200_pm_state {
-#ifdef CONFIG_WAKELOCK
-	struct wake_lock wakelock;
-#else
 	struct timer_list stay_awake;
-#endif
 	struct platform_device *pm_dev;
 	spinlock_t lock;
 	long expires_save;

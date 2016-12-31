@@ -190,65 +190,6 @@ static void cw1200_pm_deinit_common(struct cw1200_pm_state *pm)
 	}
 }
 
-#ifdef CONFIG_WAKELOCK
-
-int cw1200_pm_init(struct cw1200_pm_state *pm,
-		   struct cw1200_common *hw_priv)
-{
-	int ret = 0;
-	pm_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-
-	ret = cw1200_pm_init_common(pm, hw_priv);
-	if (!ret)
-		wake_lock_init(&pm->wakelock, WAKE_LOCK_SUSPEND, XRADIO_WAKE_LOCK);
-	else
-		pm_printk(XRADIO_DBG_ERROR,"cw1200_pm_init_common failed!\n");
-	return ret;
-}
-
-void cw1200_pm_deinit(struct cw1200_pm_state *pm)
-{
-	pm_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
-	if (wake_lock_active(&pm->wakelock))
-		wake_unlock(&pm->wakelock);
-	wake_lock_destroy(&pm->wakelock);
-	cw1200_pm_deinit_common(pm);
-}
-
-void cw1200_pm_stay_awake(struct cw1200_pm_state *pm,
-			  unsigned long tmo)
-{
-	long cur_tmo;
-	pm_printk(XRADIO_DBG_MSG,"%s\n", __FUNCTION__);
-
-	spin_lock_bh(&pm->lock);
-	cur_tmo = pm->wakelock.ws.timer.expires - jiffies;
-	if (!wake_lock_active(&pm->wakelock) || cur_tmo < (long)tmo)
-		wake_lock_timeout(&pm->wakelock, tmo);
-	spin_unlock_bh(&pm->lock);
-}
-void cw1200_pm_lock_awake(struct cw1200_pm_state *pm)
-{
-	pm_printk(XRADIO_DBG_NIY, "%s\n", __func__);
-	spin_lock_bh(&pm->lock);
-	pm->expires_save = pm->wakelock.ws.timer.expires;
-	wake_lock_timeout(&pm->wakelock, LONG_MAX);
-	spin_unlock_bh(&pm->lock);
-}
-void cw1200_pm_unlock_awake(struct cw1200_pm_state *pm)
-{
-	pm_printk(XRADIO_DBG_NIY, "%s\n", __func__);
-	spin_lock_bh(&pm->lock);
-	pm->expires_save -= jiffies;
-	if (pm->expires_save)
-		wake_lock_timeout(&pm->wakelock, pm->expires_save);
-	else
-		wake_lock_timeout(&pm->wakelock, 1);
-	spin_unlock_bh(&pm->lock);
-}
-
-#else /* CONFIG_WAKELOCK */
-
 static void cw1200_pm_stay_awake_tmo(unsigned long arg)
 {
 }
@@ -306,7 +247,6 @@ void cw1200_pm_unlock_awake(struct cw1200_pm_state *pm)
 		mod_timer(&pm->stay_awake, jiffies + 1);
 	spin_unlock_bh(&pm->lock);
 }
-#endif /* CONFIG_WAKELOCK */
 
 static long cw1200_suspend_work(struct delayed_work *work)
 {
