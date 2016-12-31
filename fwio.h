@@ -11,6 +11,12 @@
 #ifndef FWIO_H_INCLUDED
 #define FWIO_H_INCLUDED
 
+/* Hardware Type Definitions */
+#define HIF_HW_TYPE_XRADIO        (1)
+
+/* DPLL initial values */
+#define DPLL_INIT_VAL_XRADIO      (0x0EC4F121)
+
 #define XR819_HW_REV0       (8190)
 #ifdef USE_VFS_FIRMWARE
 #define XR819_BOOTLOADER    ("/system/etc/firmware/boot_xr819.bin")
