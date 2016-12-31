@@ -15,6 +15,8 @@
 #include "sta.h"
 #include "pm.h"
 
+#define SCAN_MAX_DELAY      (3*HZ)   //3s, add by yangfh for connect
+
 static void cw1200_scan_restart_delayed(struct cw1200_vif *priv);
 
 #ifdef CONFIG_XRADIO_TESTMODE

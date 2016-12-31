@@ -1,14 +1,14 @@
 /*
- * Scan interfaces for XRadio drivers
+ * Scan interface for ST-Ericsson CW1200 mac80211 drivers
  *
+ * Copyright (c) 2010, ST-Ericsson
+ * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
  * Copyright (c) 2013, XRadio
- * Author: XRadio
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
 
 #ifndef SCAN_H_INCLUDED
 #define SCAN_H_INCLUDED
@@ -21,8 +21,6 @@
 /* external */ struct ieee80211_channel;
 /* external */ struct ieee80211_hw;
 /* external */ struct work_struct;
-
-#define SCAN_MAX_DELAY      (3*HZ)   //3s, add by yangfh for connect
 
 struct cw1200_scan {
 	struct semaphore lock;
@@ -49,8 +47,9 @@ struct cw1200_scan {
 	u8 if_id;
 };
 
-int cw1200_hw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-                   struct cfg80211_scan_request *req);
+int cw1200_hw_scan(struct ieee80211_hw *hw,
+		   struct ieee80211_vif *vif,
+		   struct ieee80211_scan_request *hw_req);
 #ifdef ROAM_OFFLOAD
 int cw1200_hw_sched_scan_start(struct ieee80211_hw *hw,
                                struct ieee80211_vif *vif,
@@ -61,8 +60,10 @@ void cw1200_sched_scan_work(struct work_struct *work);
 #endif /*ROAM_OFFLOAD*/
 void cw1200_scan_work(struct work_struct *work);
 void cw1200_scan_timeout(struct work_struct *work);
+/* TODO: cw1200_clear_recent_scan_work */
 void cw1200_scan_complete_cb(struct cw1200_common *priv,
-                             struct wsm_scan_complete *arg);
+			     struct wsm_scan_complete *arg);
+/* TODO: cw1200_scan_failed_cb */
 
 /* ******************************************************************** */
 /* Raw probe requests TX workaround					*/
