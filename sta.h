@@ -29,6 +29,22 @@
 #define XRADIO_LINK_LOSS_THOLD_DEF 40
 #endif
 
+#define XRADIO_NOA_NOTIFICATION_DELAY 10
+
+#ifdef AP_HT_CAP_UPDATE
+#define HT_INFO_OFFSET 4
+#define HT_INFO_MASK 0x0011
+#define HT_INFO_IE_LEN 22
+#endif
+
+/*in linux3.4 mac,it does't have the noa pass*/
+//void cw1200_notify_noa(struct cw1200_vif *priv, int delay);
+int xrwl_unmap_link(struct cw1200_vif *priv, int link_id);
+#ifdef AP_HT_CAP_UPDATE
+void cw1200_ht_info_update_work(struct work_struct *work);
+#endif
+
+
 /* ******************************************************************** */
 /* mac80211 API								*/
 
@@ -117,6 +133,36 @@ int cw1200_set_uapsd_param(struct cw1200_vif *priv,
 				const struct wsm_edca_params *arg);
 void cw1200_ba_work(struct work_struct *work);
 void cw1200_ba_timer(unsigned long arg);
+
+/* AP stuffs */
+int cw1200_set_tim(struct ieee80211_hw *dev, struct ieee80211_sta *sta,
+		   bool set);
+int cw1200_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		   struct ieee80211_sta *sta);
+int cw1200_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta);
+void cw1200_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
+		       enum sta_notify_cmd notify_cmd,
+		       struct ieee80211_sta *sta);
+void cw1200_bss_info_changed(struct ieee80211_hw *dev,
+			     struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *info,
+			     u32 changed);
+int cw1200_ampdu_action(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
+			enum ieee80211_ampdu_mlme_action action,
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			u8 buf_size);
+
+void cw1200_suspend_resume(struct cw1200_vif *priv,
+			  struct wsm_suspend_resume *arg);
+void cw1200_set_tim_work(struct work_struct *work);
+void cw1200_set_cts_work(struct work_struct *work);
+void cw1200_multicast_start_work(struct work_struct *work);
+void cw1200_multicast_stop_work(struct work_struct *work);
+void cw1200_mcast_timeout(unsigned long arg);
+
+
 
 int __cw1200_flush(struct cw1200_common *hw_priv, bool drop, int if_id);
 void cw1200_join_work(struct work_struct *work);

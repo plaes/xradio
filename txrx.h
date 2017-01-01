@@ -94,4 +94,11 @@ int cw1200_upload_keys(struct cw1200_vif *priv);
 /* Workaround for WFD test case 6.1.10					*/
 void cw1200_link_id_reset(struct work_struct *work);
 
+
+
+int cw1200_find_link_id(struct cw1200_vif *priv, const u8 *mac);
+int cw1200_alloc_link_id(struct cw1200_vif *priv, const u8 *mac);
+void cw1200_link_id_work(struct work_struct *work);
+void cw1200_link_id_gc_work(struct work_struct *work);
+
 #endif /* CW1200_TXRX_H */

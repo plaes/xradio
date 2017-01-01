@@ -2448,3 +2448,156 @@ void cw1200_link_id_reset(struct work_struct *work)
 		flush_workqueue(hw_priv->workqueue);
 	}
 }
+
+int cw1200_find_link_id(struct cw1200_vif *priv, const u8 *mac)
+{
+	int i, ret = 0;
+	spin_lock_bh(&priv->ps_state_lock);
+	for (i = 0; i < MAX_STA_IN_AP_MODE; ++i) {
+		if (!memcmp(mac, priv->link_id_db[i].mac, ETH_ALEN) &&
+			  priv->link_id_db[i].status) {
+			priv->link_id_db[i].timestamp = jiffies;
+			ret = i + 1;
+			break;
+		}
+	}
+	spin_unlock_bh(&priv->ps_state_lock);
+	return ret;
+}
+
+int cw1200_alloc_link_id(struct cw1200_vif *priv, const u8 *mac)
+{
+	int i, ret = 0;
+	unsigned long max_inactivity = 0;
+	unsigned long now = jiffies;
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+
+	spin_lock_bh(&priv->ps_state_lock);
+	for (i = 0; i < MAX_STA_IN_AP_MODE; ++i) {
+		if (!priv->link_id_db[i].status) {
+			ret = i + 1;
+			break;
+		} else if (priv->link_id_db[i].status != XRADIO_LINK_HARD &&
+		           !hw_priv->tx_queue_stats.link_map_cache[i + 1]) {
+			unsigned long inactivity = now - priv->link_id_db[i].timestamp;
+			if (inactivity < max_inactivity)
+				continue;
+			max_inactivity = inactivity;
+			ret = i + 1;
+		}
+	}
+	if (ret) {
+		struct cw1200_link_entry *entry = &priv->link_id_db[ret - 1];
+		ap_printk(XRADIO_DBG_NIY, "STA added, link_id: %d\n", ret);
+		entry->status = XRADIO_LINK_RESERVE;
+		memcpy(&entry->mac, mac, ETH_ALEN);
+		memset(&entry->buffered, 0, XRADIO_MAX_TID);
+		skb_queue_head_init(&entry->rx_queue);
+		wsm_lock_tx_async(hw_priv);
+		if (queue_work(hw_priv->workqueue, &priv->link_id_work) <= 0)
+			wsm_unlock_tx(hw_priv);
+	} else {
+		ap_printk(XRADIO_DBG_WARN, "Early: no more link IDs available.\n");
+	}
+
+	spin_unlock_bh(&priv->ps_state_lock);
+	return ret;
+}
+
+
+void cw1200_link_id_work(struct work_struct *work)
+{
+	struct cw1200_vif *priv = container_of(work, struct cw1200_vif, link_id_work);
+	struct cw1200_common *hw_priv = priv->hw_priv;
+
+	wsm_flush_tx(hw_priv);
+	cw1200_link_id_gc_work(&priv->link_id_gc_work.work);
+	wsm_unlock_tx(hw_priv);
+}
+
+void cw1200_link_id_gc_work(struct work_struct *work)
+{
+	struct cw1200_vif *priv =
+		container_of(work, struct cw1200_vif, link_id_gc_work.work);
+	struct cw1200_common *hw_priv = xrwl_vifpriv_to_hwpriv(priv);
+	struct wsm_map_link map_link = {
+		.link_id = 0,
+	};
+	unsigned long now = jiffies;
+	unsigned long next_gc = -1;
+	long ttl;
+	bool need_reset;
+	u32 mask;
+	int i;
+	ap_printk(XRADIO_DBG_TRC,"%s\n", __FUNCTION__);
+
+	if (priv->join_status != XRADIO_JOIN_STATUS_AP)
+		return;
+
+	wsm_lock_tx(hw_priv);
+	spin_lock_bh(&priv->ps_state_lock);
+	for (i = 0; i < MAX_STA_IN_AP_MODE; ++i) {
+		need_reset = false;
+		mask = BIT(i + 1);
+		if (priv->link_id_db[i].status == XRADIO_LINK_RESERVE ||
+			  (priv->link_id_db[i].status == XRADIO_LINK_HARD && 
+			   !(priv->link_id_map & mask))) {
+			if (priv->link_id_map & mask) {
+				priv->sta_asleep_mask &= ~mask;
+				priv->pspoll_mask &= ~mask;
+				need_reset = true;
+			}
+			priv->link_id_map |= mask;
+			if (priv->link_id_db[i].status != XRADIO_LINK_HARD)
+				priv->link_id_db[i].status = XRADIO_LINK_SOFT;
+			memcpy(map_link.mac_addr, priv->link_id_db[i].mac, ETH_ALEN);
+			spin_unlock_bh(&priv->ps_state_lock);
+			if (need_reset) {
+				WARN_ON(xrwl_unmap_link(priv, i + 1));
+			}
+			map_link.link_id = i + 1;
+			WARN_ON(wsm_map_link(hw_priv, &map_link, priv->if_id));
+			next_gc = min(next_gc, XRADIO_LINK_ID_GC_TIMEOUT);
+			spin_lock_bh(&priv->ps_state_lock);
+		} else if (priv->link_id_db[i].status == XRADIO_LINK_SOFT) {
+			ttl = priv->link_id_db[i].timestamp - now + XRADIO_LINK_ID_GC_TIMEOUT;
+			if (ttl <= 0) {
+				need_reset = true;
+				priv->link_id_db[i].status = XRADIO_LINK_OFF;
+				priv->link_id_map &= ~mask;
+				priv->sta_asleep_mask &= ~mask;
+				priv->pspoll_mask &= ~mask;
+				memset(map_link.mac_addr, 0, ETH_ALEN);
+				spin_unlock_bh(&priv->ps_state_lock);
+				WARN_ON(xrwl_unmap_link(priv, i + 1));
+				spin_lock_bh(&priv->ps_state_lock);
+			} else {
+				next_gc = min_t(unsigned long, next_gc, ttl);
+			}
+		} else if (priv->link_id_db[i].status == XRADIO_LINK_RESET ||
+		           priv->link_id_db[i].status == XRADIO_LINK_RESET_REMAP) {
+			int status = priv->link_id_db[i].status;
+			priv->link_id_db[i].status = XRADIO_LINK_OFF;
+			priv->link_id_db[i].timestamp = now;
+			spin_unlock_bh(&priv->ps_state_lock);
+			WARN_ON(xrwl_unmap_link(priv, i + 1));
+			if (status == XRADIO_LINK_RESET_REMAP) {
+				memcpy(map_link.mac_addr, priv->link_id_db[i].mac, ETH_ALEN);
+				map_link.link_id = i + 1;
+				WARN_ON(wsm_map_link(hw_priv, &map_link, priv->if_id));
+				next_gc = min(next_gc, XRADIO_LINK_ID_GC_TIMEOUT);
+				priv->link_id_db[i].status = priv->link_id_db[i].prev_status;
+			}
+			spin_lock_bh(&priv->ps_state_lock);
+		}
+		if (need_reset) {
+			skb_queue_purge(&priv->link_id_db[i].rx_queue);
+			ap_printk(XRADIO_DBG_NIY, "STA removed, link_id: %d\n", i + 1);
+		}
+	}
+	spin_unlock_bh(&priv->ps_state_lock);
+	if (next_gc != -1)
+		queue_delayed_work(hw_priv->workqueue, &priv->link_id_gc_work, next_gc);
+	wsm_unlock_tx(hw_priv);
+}
